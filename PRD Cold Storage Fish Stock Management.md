@@ -95,6 +95,7 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 - Kombinasi jenis, grade, dan size tidak boleh dobel.
 - Lokasi dikelola sebagai daftar nama lokasi tersendiri.
 - Produk dan lokasi tidak bisa dihapus, hanya dinonaktifkan. Data nonaktif tidak muncul di dropdown baru tapi tetap tampil di data lama.
+- Lokasi tidak bisa dinonaktifkan selama masih ada dus di dalamnya. Dus harus dipindah dulu.
 
 ### 5.3 Stiker QR
 
@@ -116,6 +117,7 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 - Staf bisa mengubah field batch di tengah jalan. Scan berikutnya memakai nilai baru, dus yang sudah discan tidak berubah.
 - Layar menampilkan jumlah dus yang sudah discan dan daftar scan terakhir.
 - Saat batch diselesaikan, tampil ringkasan per produk dan tanggal.
+- Batch yang belum berisi dus tidak bisa diselesaikan, tapi bisa dibatalkan. Batch yang dibatalkan dihapus dan hanya tercatat di log.
 
 ### 5.5 Order Keluar
 
@@ -125,7 +127,7 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 - Untuk setiap item tampil stok tersedia, yaitu dus di gudang dikurangi sisa kebutuhan order lain yang masih terbuka.
 - Jumlah item melebihi stok tersedia ditolak.
 - Status order: draft, open, completed, closed, cancelled. Hanya order open yang muncul di layar staf.
-- Order otomatis completed saat semua item terpenuhi.
+- Saat semua item terpenuhi, order tetap open dengan tanda menunggu pengecekan. Admin mengecek fisik barang, lalu menyelesaikan order (completed).
 - Admin bisa menutup order sebelum terpenuhi dengan alasan wajib.
 
 ### 5.6 Outbound (Barang Keluar) dengan FEFO
@@ -163,7 +165,7 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 
 - Admin bisa merevisi produk, tanggal produksi, dan tanggal expired dengan alasan wajib.
 - Admin bisa memindah lokasi per dus atau beberapa dus sekaligus lewat scan.
-- Admin bisa membatalkan scan inbound. Dus dihapus secara soft delete dan stiker kembali available.
+- Admin bisa membatalkan scan inbound selama batch masih berjalan. Dus dihapus secara soft delete dan stiker kembali available. Setelah batch ditutup, scan masuk tidak bisa dibatalkan; koreksi dilakukan lewat revisi data, pindah lokasi, atau adjustment.
 - Admin bisa membatalkan scan outbound selama order masih open. Dus kembali ke gudang.
 - Setiap revisi dan pembatalan mencatat nilai lama, nilai baru, alasan, user, dan waktu.
 
@@ -234,9 +236,9 @@ Dus hanya bisa meninggalkan status Di gudang lewat scan keluar terhadap order, a
 Tahap 1 sampai 3 sudah cukup untuk uji coba di gudang. Tahap berikutnya ditambahkan sambil uji coba berjalan.
 
 1. **Fondasi:** login, role, kelola user, master data, log aktivitas. Selesai jika Owner bisa membuat akun dan Admin bisa mengisi master.
-2. **Stiker dan Inbound:** generate dan cetak QR, layar scan, inbound batch, daftar stok. Selesai jika satu truk bisa diterima dan stok tampil benar.
+2. **Stiker dan Inbound:** generate dan cetak QR, layar scan, inbound batch, pembatalan scan inbound oleh Admin, daftar stok. Selesai jika satu truk bisa diterima dan stok tampil benar.
 3. **Outbound:** order keluar, stok tersedia, scan keluar dengan FEFO. Selesai jika barang hanya bisa keluar lewat order. **Mulai uji coba di gudang.**
-4. **Koreksi dan Adjustment:** revisi data, pindah lokasi, pembatalan scan, adjustment dengan approval Owner.
+4. **Koreksi dan Adjustment:** revisi data, pindah lokasi, pembatalan scan outbound, adjustment dengan approval Owner.
 5. **Dashboard dan Laporan:** dashboard Owner, laporan stok per lokasi untuk pengecekan manual, laporan mutasi, peringatan expired, export Excel.
 6. **Kamera dan Penyempurnaan:** scan kamera, bunyi, uji di perangkat lapangan, perbaikan dari hasil uji coba.
 

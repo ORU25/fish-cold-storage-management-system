@@ -20,7 +20,7 @@ test('stock counts boxes in the warehouse and pending adjustment, in MC and KG',
     $this->actingAs($admin)->get('/stock')
         ->assertInertia(fn ($page) => $page
             ->component('stock/index')
-            ->where('perProduct', [['product' => 'MB A 3-5', 'mc' => 3, 'pending' => 1, 'kg' => 30]])
+            ->where('perProduct', [['product' => 'MB A 3-5', 'mc' => 3, 'pending' => 1, 'available' => 2, 'kg' => 30]])
             ->where('perLocation', [
                 ['location' => 'Blok A', 'product' => 'MB A 3-5', 'mc' => 2],
                 ['location' => 'Blok B', 'product' => 'MB A 3-5', 'mc' => 1],

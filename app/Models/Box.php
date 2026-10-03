@@ -31,6 +31,9 @@ class Box extends Model
         'status',
         'scanned_in_by',
         'scanned_in_at',
+        'outbound_order_id',
+        'scanned_out_by',
+        'scanned_out_at',
     ];
 
     protected function casts(): array
@@ -40,6 +43,7 @@ class Box extends Model
             'expired_date' => 'date:Y-m-d',
             'status' => BoxStatus::class,
             'scanned_in_at' => 'datetime',
+            'scanned_out_at' => 'datetime',
         ];
     }
 
@@ -61,6 +65,11 @@ class Box extends Model
     public function qrLabel(): BelongsTo
     {
         return $this->belongsTo(QrLabel::class);
+    }
+
+    public function outboundOrder(): BelongsTo
+    {
+        return $this->belongsTo(OutboundOrder::class);
     }
 
     public function scannedInBy(): BelongsTo

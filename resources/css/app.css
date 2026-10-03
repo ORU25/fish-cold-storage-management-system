@@ -156,3 +156,22 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* window.print() on a page with a .print-area prints only that area (e.g. the FEFO pick list). */
+@media print {
+    body:has(.print-area) * {
+        visibility: hidden;
+    }
+
+    .print-area,
+    .print-area * {
+        visibility: visible;
+    }
+
+    .print-area {
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        color: #000;
+    }
+}

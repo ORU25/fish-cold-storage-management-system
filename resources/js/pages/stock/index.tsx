@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
+import { BOX_STATUS_LABELS } from '@/lib/labels';
 import { formatDate } from '@/lib/utils';
 import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
@@ -20,7 +21,7 @@ interface BoxRow {
 }
 
 interface Props {
-    perProduct: { product: string; mc: number; pending: number; kg: number }[];
+    perProduct: { product: string; mc: number; pending: number; available: number; kg: number }[];
     perLocation: { location: string; product: string; mc: number }[];
     boxes: Paginated<BoxRow>;
     filters: { product_id?: string; location_id?: string; status?: string; code?: string };
@@ -28,14 +29,6 @@ interface Props {
     locations: { id: string; name: string }[];
     statuses: string[];
 }
-
-const STATUS_LABELS: Record<string, string> = {
-    in_warehouse: 'Di gudang',
-    outbound: 'Keluar',
-    pending_adjustment: 'Menunggu approval',
-    lost: 'Hilang',
-    damaged: 'Rusak',
-};
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Stok', href: '/stock' }];
 const selectClass = 'border-input bg-background h-9 rounded-md border px-3 text-sm';
@@ -67,6 +60,9 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                         <th className="p-3">Produk</th>
                                         <th className="p-3 text-right">MC</th>
                                         <th className="p-3 text-right">KG</th>
+                                        <th className="p-3 text-right" title="Di gudang dikurangi kebutuhan order open">
+                                            Tersedia
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -87,6 +83,7 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                             </td>
                                             <td className="p-3 text-right tabular-nums">{number(row.mc)}</td>
                                             <td className="p-3 text-right tabular-nums">{number(row.kg)}</td>
+                                            <td className="p-3 text-right tabular-nums">{number(row.available)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -96,6 +93,9 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                             <td className="p-3">Total</td>
                                             <td className="p-3 text-right tabular-nums">{number(totalMc)}</td>
                                             <td className="p-3 text-right tabular-nums">{number(totalKg)}</td>
+                                            <td className="p-3 text-right tabular-nums">
+                                                {number(perProduct.reduce((sum, row) => sum + row.available, 0))}
+                                            </td>
                                         </tr>
                                     </tfoot>
                                 )}
@@ -165,7 +165,7 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                             <option value="">Stok riil</option>
                             {statuses.map((status) => (
                                 <option key={status} value={status}>
-                                    {STATUS_LABELS[status] ?? status}
+                                    {BOX_STATUS_LABELS[status] ?? status}
                                 </option>
                             ))}
                         </select>
@@ -204,7 +204,7 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                         <td className="p-3">{formatDate(box.expired_date)}</td>
                                         <td className="p-3">
                                             <Badge variant={box.status === 'in_warehouse' ? 'default' : 'secondary'}>
-                                                {STATUS_LABELS[box.status] ?? box.status}
+                                                {BOX_STATUS_LABELS[box.status] ?? box.status}
                                             </Badge>
                                         </td>
                                     </tr>

@@ -64,11 +64,22 @@ const STYLES: Record<ScanFeedbackType, { className: string; icon: typeof CheckCi
  * Shared scan field (PRD 5.12): works with a keyboard-mode scanner (types the code then Enter),
  * stays focused, locks while a scan is processing and refuses scans while offline.
  */
-export function ScanInput({ onScan, processing, feedback }: { onScan: (code: string) => void; processing: boolean; feedback: ScanFeedback | null }) {
+export function ScanInput({
+    onScan,
+    processing,
+    feedback,
+    lockedMessage,
+}: {
+    onScan: (code: string) => void;
+    processing: boolean;
+    feedback: ScanFeedback | null;
+    /** When set, scanning is closed and this text replaces the placeholder. */
+    lockedMessage?: string;
+}) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [code, setCode] = useState('');
     const online = useOnline();
-    const disabled = processing || !online;
+    const disabled = processing || !online || Boolean(lockedMessage);
 
     useEffect(() => {
         if (feedback) {
@@ -125,7 +136,7 @@ export function ScanInput({ onScan, processing, feedback }: { onScan: (code: str
                     autoCapitalize="characters"
                     spellCheck={false}
                     enterKeyHint="go"
-                    placeholder={processing ? 'Memproses…' : 'Scan atau ketik kode QR lalu Enter'}
+                    placeholder={lockedMessage ?? (processing ? 'Memproses…' : 'Scan atau ketik kode QR lalu Enter')}
                     aria-label="Kode QR"
                     className="border-input bg-background focus-visible:ring-ring h-16 w-full rounded-xl border-2 pr-4 pl-14 font-mono text-xl uppercase focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
                 />

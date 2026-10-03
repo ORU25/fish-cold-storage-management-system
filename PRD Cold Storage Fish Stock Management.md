@@ -1,0 +1,273 @@
+# PRD: Cold Storage Fish Stock Management System
+
+Oct 3, 2026 · @Kennard Benedict
+
+## 1. Ringkasan
+
+Sistem ini adalah web app untuk melacak setiap dus ikan di cold storage dari masuk sampai keluar, supaya tidak ada dus yang hilang tanpa jejak. Setiap dus diberi stiker QR berisi ID unik. Produk ikan (jenis, grade, size), lokasi, dan tanggal expired disimpan di database dan diikat ke ID tersebut.
+
+**Masalah yang diselesaikan.** Saat ini pergerakan barang di gudang sulit diaudit. Dus bisa keluar tanpa dokumen, data bisa diubah tanpa jejak, dan selisih stok baru ketahuan lama setelah kejadian. Akibatnya pemilik tidak bisa membedakan salah catat, barang rusak, dan pencurian.
+
+**Pendekatan.** Sistem menegakkan empat aturan:
+
+1. Tidak ada dus keluar tanpa Order Keluar yang dibuat Admin.
+2. Setiap perubahan tercatat di log yang tidak bisa diedit atau dihapus siapa pun.
+3. Stok hanya berkurang lewat scan keluar terhadap order, atau adjustment yang di-approve Owner.
+4. Hanya QR yang dikeluarkan sistem yang bisa dipakai, dan setiap QR hanya sekali.
+
+Dokumen pendukung: rancangan sistem teknis di `notes/rancangan-sistem.md` dan review spesifikasi di `notes/review-spesifikasi.md` pada folder project.
+
+## 2. Tujuan dan Metrik Keberhasilan
+
+Tujuan utamanya: setiap selisih stok bisa dijelaskan sampai ke dus, user, dan waktu kejadiannya.
+
+| Tujuan | Metrik | Usulan target |
+| --- | --- | --- |
+| Semua pergerakan dus tercatat | Dus keluar tanpa order | 0 |
+| Selisih stok cepat ketahuan | Frekuensi pengecekan fisik manual | Minimal 1 kali per bulan |
+| Selisih bisa ditelusuri | Selisih stok yang punya riwayat lengkap di log | 100% |
+| FEFO dijalankan | Scan keluar yang melanggar FEFO | Di bawah 5%, semuanya dengan alasan |
+| Operasional tidak melambat | Waktu scan inbound per dus dalam mode batch | Di bawah 3 detik |
+| Adjustment tidak menggantung | Waktu dari pengajuan sampai keputusan Owner | Di bawah 2 hari kerja |
+
+Angka target di atas adalah usulan awal dan perlu dikonfirmasi pemilik.
+
+**Bukan tujuan rilis ini:** penimbangan per dus, harga dan nilai stok, penagihan atau invoice, integrasi dengan sistem akuntansi, dan multi-gudang.
+
+## 3. Pengguna
+
+Ada tiga role tetap. Pemisahan tugasnya sengaja dibuat supaya tidak ada satu orang yang bisa mengeluarkan barang sekaligus menghapus jejaknya.
+
+| Role | Siapa | Konteks kerja | Kebutuhan utama | Batasan |
+| --- | --- | --- | --- | --- |
+| Staff | Operator lapangan di gudang | Scan masuk dan keluar di area bongkar muat di luar cold storage (ada jaringan). Memakai scanner fisik, HP, atau tablet | Scan cepat dengan umpan balik jelas (bunyi dan warna), tombol besar | Hanya scan Inbound dan Outbound. Tidak bisa edit atau hapus apa pun |
+| Admin | Kepala gudang atau staf administrasi | Di kantor gudang, PC atau laptop | Membuat order keluar, memperbaiki data, memantau stok, mengajukan adjustment | Tidak bisa mengurangi stok tanpa approval Owner. Setiap perubahan wajib alasan |
+| Owner | Pemilik usaha | Dari mana saja, sering lewat HP | Melihat kondisi stok dan kejanggalan sekilas, memutuskan adjustment | Tidak melakukan operasional gudang. Mengelola akun user dan produk ikan |
+
+## 4. Ruang Lingkup
+
+Rilis pertama mencakup seluruh siklus dus di satu gudang, dari stiker QR sampai dashboard Owner.
+
+**Termasuk:**
+
+- Login dan tiga role (Staff, Admin, Owner), kelola user oleh Owner
+- Master data: produk ikan (satu kombinasi jenis, grade, size) dan lokasi
+- Generate dan cetak stiker QR
+- Inbound mode batch
+- Order Keluar dan scan Outbound dengan FEFO
+- Laporan stok per lokasi untuk pengecekan fisik manual
+- Revisi data, pindah lokasi, dan pembatalan scan oleh Admin
+- Adjustment hilang atau rusak dengan approval Owner
+- Log aktivitas yang tidak bisa diubah
+- Dashboard Owner, laporan, export Excel
+- Scan lewat scanner fisik dan kamera HP/tablet
+
+**Tidak termasuk:**
+
+- Multi-gudang
+- Fitur Stock Opname berbasis scan (pengecekan fisik dilakukan manual) dan mode offline (daftar ambil FEFO cukup disimpan di perangkat atau dicetak)
+- Penimbangan per dus, harga, dan nilai stok
+- Data customer dan supplier sebagai master (cukup teks bebas di order dan batch)
+- Invoice, pembayaran, integrasi akuntansi
+- Notifikasi WhatsApp atau email
+- Aplikasi mobile native (cukup web responsif)
+
+## 5. Kebutuhan Fungsional
+
+Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur dianggap selesai jika semua kriteria terpenuhi dan teruji.
+
+### 5.1 Autentikasi dan User
+
+**Sebagai Owner**, saya ingin membuat dan menonaktifkan akun, supaya hanya orang yang berwenang yang bisa memakai sistem.
+
+- Login memakai username dan password.
+- Owner bisa membuat user, mengganti role, mereset password, dan menonaktifkan user.
+- User nonaktif tidak bisa login, tapi riwayatnya tetap tampil di log.
+- User tidak bisa dihapus.
+- Setiap halaman dan aksi dicek berdasarkan role di server, bukan hanya disembunyikan di tampilan.
+
+### 5.2 Master Data
+
+**Sebagai Admin**, saya ingin mengelola daftar produk ikan dan lokasi, supaya staf cukup memilih satu produk dari dropdown dan tidak ada salah ketik. **Sebagai Owner**, saya juga ingin bisa mengelola produk ikan, supaya daftar produk sesuai dengan yang saya jual.
+
+- Satu produk ikan adalah satu kombinasi jenis, grade, dan size. Contoh: MB A 3-5, MB A 6-10, dan MB B 6-10 adalah tiga produk berbeda.
+- Setiap produk punya kode, jenis ikan, grade (boleh kosong), size (boleh kosong), berat per dus dalam kg (default 10), dan masa simpan dalam hari (opsional).
+- Kombinasi jenis, grade, dan size tidak boleh dobel.
+- Lokasi dikelola sebagai daftar nama lokasi tersendiri.
+- Produk dan lokasi tidak bisa dihapus, hanya dinonaktifkan. Data nonaktif tidak muncul di dropdown baru tapi tetap tampil di data lama.
+
+### 5.3 Stiker QR
+
+**Sebagai Admin**, saya ingin mencetak stiker QR dalam jumlah banyak sebelum barang datang.
+
+- Admin memasukkan jumlah stiker, sistem membuat kode berformat `DUS-YYMMDD-NNNN` yang unik.
+- Sistem menyediakan halaman cetak lembar stiker, dan batch yang sama bisa dicetak ulang.
+- Admin bisa menandai stiker rusak sebagai void.
+- Stiker hanya bisa berstatus available, used, atau void.
+
+### 5.4 Inbound (Barang Masuk)
+
+**Sebagai Staff**, saya ingin mengisi data sekali lalu scan banyak dus berturut-turut, supaya penerimaan satu truk tidak lama.
+
+- Staf membuat batch dengan nama supplier, nomor surat jalan (opsional), produk ikan, lokasi, dan tanggal.
+- Staf bisa mengisi tanggal produksi atau tanggal expired. Jika tanggal produksi diisi dan produk punya masa simpan, tanggal expired terisi otomatis dan bisa diubah.
+- Setiap scan membuat satu dus dengan data batch saat itu, mencatat staf dan waktu, dan mengubah stiker menjadi used.
+- Scan ditolak jika kode tidak dikenal, sudah dipakai, atau void, dengan pesan dan bunyi gagal.
+- Staf bisa mengubah field batch di tengah jalan. Scan berikutnya memakai nilai baru, dus yang sudah discan tidak berubah.
+- Layar menampilkan jumlah dus yang sudah discan dan daftar scan terakhir.
+- Saat batch diselesaikan, tampil ringkasan per produk dan tanggal.
+
+### 5.5 Order Keluar
+
+**Sebagai Admin**, saya ingin membuat order keluar, supaya staf hanya mengeluarkan barang yang memang diminta.
+
+- Order berisi tujuan atau customer, tanggal, catatan, dan satu atau lebih item (produk ikan dan jumlah dus).
+- Untuk setiap item tampil stok tersedia, yaitu dus di gudang dikurangi sisa kebutuhan order lain yang masih terbuka.
+- Jumlah item melebihi stok tersedia ditolak.
+- Status order: draft, open, completed, closed, cancelled. Hanya order open yang muncul di layar staf.
+- Order otomatis completed saat semua item terpenuhi.
+- Admin bisa menutup order sebelum terpenuhi dengan alasan wajib.
+
+### 5.6 Outbound (Barang Keluar) dengan FEFO
+
+**Sebagai Staff**, saya ingin sistem memberi tahu dus mana yang harus diambil, supaya barang yang expired-nya lebih dulu keluar lebih dulu.
+
+- Staf memilih order open, lalu melihat daftar rekomendasi dus per item, diurutkan dari expired terdekat, dikelompokkan per tanggal dan lokasi. Daftar ini tersimpan di perangkat dan bisa dicetak, karena dus diambil di dalam cold storage tanpa jaringan lalu discan di area bongkar muat.
+- Jika stok tanggal terdekat tidak cukup, rekomendasi berlanjut ke tanggal berikutnya.
+- Scan ditolak jika dus tidak berada di gudang, atau produknya tidak cocok dengan item yang belum terpenuhi.
+- Jika masih ada dus cocok dengan expired lebih awal, muncul peringatan FEFO. Staf boleh lanjut dengan mengisi alasan, dan scan ditandai sebagai pelanggaran FEFO.
+- Scan sukses mengubah dus menjadi outbound dan mencatat staf, waktu, dan order.
+- Dua staf tidak bisa mengeluarkan dus yang sama pada saat bersamaan.
+
+### 5.7 Pengecekan Stok Manual
+
+**Sebagai Admin**, saya ingin mencocokkan fisik gudang dengan jumlah di sistem secara manual, supaya selisih cepat ketahuan.
+
+- Halaman Stok menampilkan jumlah dus per produk dan lokasi, beserta daftar kode dus di setiap lokasi.
+- Daftar ini bisa dicetak atau diekspor ke Excel sebagai lembar hitung manual.
+- Laporan mutasi menampilkan jumlah masuk, keluar, dan adjustment per periode, sehingga stok akhir bisa ditelusuri dari stok awal ditambah masuk dikurangi keluar dan adjustment.
+- Jika hitungan fisik berbeda, Admin menelusuri dus yang selisih lewat daftar kode per lokasi dan riwayat log, lalu mengajukan adjustment.
+
+### 5.8 Adjustment (Hilang atau Rusak)
+
+**Sebagai Admin**, saya ingin mengajukan dus hilang atau rusak, dan **sebagai Owner** saya ingin memutuskannya, supaya stok tidak berkurang tanpa sepengetahuan pemilik.
+
+- Pengajuan berisi dus, jenis (hilang atau rusak), alasan wajib, dan foto opsional.
+- Dus yang diajukan menjadi pending dan tidak bisa dikeluarkan, tapi masih dihitung di stok riil sampai diputuskan.
+- Satu dus hanya boleh punya satu pengajuan pending.
+- Owner bisa approve atau reject dengan catatan. Approve mengubah dus menjadi lost atau damaged. Reject mengembalikan dus ke gudang.
+
+### 5.9 Revisi dan Koreksi oleh Admin
+
+**Sebagai Admin**, saya ingin memperbaiki salah input, dengan jejak yang jelas.
+
+- Admin bisa merevisi produk, tanggal produksi, dan tanggal expired dengan alasan wajib.
+- Admin bisa memindah lokasi per dus atau beberapa dus sekaligus lewat scan.
+- Admin bisa membatalkan scan inbound. Dus dihapus secara soft delete dan stiker kembali available.
+- Admin bisa membatalkan scan outbound selama order masih open. Dus kembali ke gudang.
+- Setiap revisi dan pembatalan mencatat nilai lama, nilai baru, alasan, user, dan waktu.
+
+### 5.10 Log Aktivitas
+
+**Sebagai Owner**, saya ingin melihat siapa melakukan apa dan kapan, supaya setiap kejanggalan bisa ditelusuri.
+
+- Setiap kejadian penting tercatat: scan masuk dan keluar, revisi, pindah lokasi, pembatalan, pelanggaran FEFO, order, adjustment, perubahan user, dan login.
+- Log tidak bisa diedit atau dihapus lewat aplikasi oleh siapa pun.
+- Log bisa difilter per user, jenis aksi, dus, dan rentang tanggal.
+- Halaman detail dus menampilkan riwayat lengkap dus tersebut dari log.
+
+### 5.11 Dashboard dan Laporan
+
+**Sebagai Owner**, saya ingin melihat kondisi gudang dan kejanggalan dalam satu layar.
+
+- Dashboard menampilkan: rekap stok per produk dalam MC dan KG, mengikuti format rekap yang sudah dipakai; dus mendekati expired (default 30 hari, bisa diatur); adjustment menunggu keputusan; pelanggaran FEFO terbaru; revisi dan pembatalan terbaru oleh Admin; mutasi masuk dan keluar per hari.
+- Owner bisa approve atau reject adjustment langsung dari dashboard.
+- Laporan stok per lokasi, mutasi, dan adjustment bisa diekspor ke Excel.
+
+### 5.12 Layar Scan
+
+**Sebagai Staff**, saya ingin bisa scan dengan alat apa pun yang tersedia.
+
+- Input scan otomatis fokus dan kembali fokus setelah setiap scan.
+- Scanner fisik bekerja tanpa klik apa pun: kode diketik scanner lalu Enter memproses scan.
+- Tombol scan kamera tersedia di HP dan tablet.
+- Sukses, peringatan, dan gagal punya warna dan bunyi berbeda.
+- Input dikunci sebentar saat memproses supaya satu dus tidak tercatat dua kali.
+
+## 6. Kebutuhan Non-Fungsional
+
+| Aspek | Kebutuhan |
+| --- | --- |
+| Kecepatan | Satu scan diproses dan memberi umpan balik dalam waktu di bawah 1 detik pada jaringan gudang normal |
+| Perangkat | Berjalan di Chrome terbaru pada PC, tablet Android, dan HP Android. Layar scan nyaman dipakai di lebar 360 px |
+| Scanner | Kompatibel dengan scanner USB atau Bluetooth mode keyboard yang mengirim Enter |
+| Kamera | Scan kamera berjalan lewat HTTPS |
+| Keamanan | Password di-hash, sesi login berakhir setelah tidak aktif, semua aksi dicek role di server, HTTPS wajib |
+| Integritas data | Semua operasi scan dan perubahan status berjalan dalam transaksi database dengan row lock. Kode QR dan status dus dijaga unik di level database |
+| Jejak audit | Log tidak bisa diubah lewat aplikasi. Untuk produksi, user database aplikasi hanya diberi hak tambah dan baca pada tabel log |
+| Ketersediaan | Inbound dan Outbound wajib online karena dilakukan di luar cold storage. Jika koneksi putus, layar scan menampilkan peringatan dan tidak menerima scan. Daftar ambil FEFO tersimpan di perangkat atau bisa dicetak untuk dipakai di dalam cold storage |
+| Cadangan | Backup database otomatis harian, disimpan di luar server aplikasi |
+| Bahasa | Antarmuka dalam Bahasa Indonesia, tanggal format DD/MM/YYYY, zona waktu WIB |
+
+## 7. Model Data dan Teknologi
+
+Sistem dibangun dengan Laravel, Inertia.js, React, dan Tailwind CSS, memakai MySQL atau PostgreSQL. Skema lengkap per kolom ada di `notes/rancangan-sistem.md`. Entitas utamanya:
+
+| Entitas | Isi | Status |
+| --- | --- | --- |
+| User | Nama, username, role, aktif | aktif, nonaktif |
+| Master | Produk ikan (jenis, grade, size, berat per dus, masa simpan) dan lokasi | aktif, nonaktif |
+| Stiker QR | Kode `DUS-YYMMDD-NNNN`, batch cetak | available, used, void |
+| Batch Masuk | Supplier, nomor surat jalan, staf, waktu |  |
+| Dus | Kode QR, produk, lokasi, tanggal produksi, tanggal expired, siapa dan kapan masuk/keluar | in\_warehouse, outbound, pending\_adjustment, lost, damaged |
+| Order Keluar | Tujuan, tanggal, item (produk, jumlah) | draft, open, completed, closed, cancelled |
+| Scan Keluar | Dus, item order, staf, tanda pelanggaran FEFO dan alasannya |  |
+| Adjustment | Dus, hilang atau rusak, alasan, foto, pengaju, pemutus | pending, approved, rejected |
+| Log Aktivitas | User, aksi, objek, nilai lama dan baru, alasan, waktu | tidak bisa diubah |
+
+&#91;embedded content: siklus status dus · 6 status\]
+
+Dus hanya bisa meninggalkan status Di gudang lewat scan keluar terhadap order, atau lewat pengajuan Admin yang diputuskan Owner.
+
+## 8. Tahapan Rilis
+
+Tahap 1 sampai 3 sudah cukup untuk uji coba di gudang. Tahap berikutnya ditambahkan sambil uji coba berjalan.
+
+1. **Fondasi:** login, role, kelola user, master data, log aktivitas. Selesai jika Owner bisa membuat akun dan Admin bisa mengisi master.
+2. **Stiker dan Inbound:** generate dan cetak QR, layar scan, inbound batch, daftar stok. Selesai jika satu truk bisa diterima dan stok tampil benar.
+3. **Outbound:** order keluar, stok tersedia, scan keluar dengan FEFO. Selesai jika barang hanya bisa keluar lewat order. **Mulai uji coba di gudang.**
+4. **Koreksi dan Adjustment:** revisi data, pindah lokasi, pembatalan scan, adjustment dengan approval Owner.
+5. **Dashboard dan Laporan:** dashboard Owner, laporan stok per lokasi untuk pengecekan manual, laporan mutasi, peringatan expired, export Excel.
+6. **Kamera dan Penyempurnaan:** scan kamera, bunyi, uji di perangkat lapangan, perbaikan dari hasil uji coba.
+
+## 9. Asumsi, Risiko, dan Pertanyaan Terbuka
+
+**Asumsi:**
+
+- Berat setiap dus sama untuk satu produk (di contoh rekap 10 kg per dus), sehingga stok dihitung per dus (MC) dan KG dihitung otomatis.
+- Satu gudang. Area bongkar muat di luar cold storage punya WiFi atau sinyal, sedangkan di dalam cold storage tidak ada jaringan.
+- Dus selalu keluar utuh, tidak pernah dibongkar sebagian.
+- Stiker QR tahan suhu beku dan lembap.
+
+**Risiko:**
+
+| Risiko | Dampak | Mitigasi |
+| --- | --- | --- |
+| Tidak ada jaringan di dalam cold storage | Pengambilan dus tidak bisa memakai data online | Daftar ambil FEFO disimpan di perangkat atau dicetak, scan masuk dan keluar di area bongkar muat |
+| Stiker lepas atau rusak karena es | Dus tidak bisa dilacak | Pakai stiker khusus freezer, Admin bisa membuat stiker pengganti lewat revisi |
+| Staf menganggap scan memperlambat kerja | Scan dilewati | Mode batch, umpan balik bunyi, uji coba waktu scan per dus |
+| Admin dan staf bekerja sama mengeluarkan barang | Kecolongan tetap terjadi | Semua aksi Admin tampil di dashboard Owner, pengecekan fisik manual berkala, pelanggaran FEFO dipantau |
+| Owner terlambat memutuskan adjustment | Data stok menggantung | Pengajuan pending tampil menonjol di dashboard Owner |
+
+**Pertanyaan terbuka:**
+
+- [x] Tanggal apa yang tercetak di dus supplier, tanggal produksi atau tanggal expired? Diputuskan: staf menginput manual sesuai yang tertera di dus, lewat tanggal produksi (expired dihitung otomatis) atau tanggal expired langsung.
+- [x] Berapa hari batas "mendekati expired" di dashboard? Default 30 hari.
+- [x] Ukuran kertas dan layout stiker QR yang akan dipakai? Usulan: label thermal tahan beku 50 x 30 mm, QR 25 x 25 mm dengan kode teks di bawahnya, bisa dicetak printer label thermal.
+- [x] Apakah target metrik di bagian 2 sudah sesuai?
+
+**Dari contoh rekap stok:**
+
+- [ ] Apakah A, B, dan PP adalah grade? Saat ini dicatat sebagai grade di dalam data produk (MB A 3-5: jenis MB, grade A, size 3-5).
+- [ ] Apakah semua jenis ikan 10 kg per dus, atau ada yang berbeda?
+- [ ] Kolom EKOR kosong di semua baris. Apakah ada ikan yang dihitung per ekor? Saat ini tidak dicatat.

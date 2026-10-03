@@ -11,7 +11,8 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton asChild isActive={page.url.startsWith(item.url)}>
-                            <Link href={item.url} prefetch>
+                            {/* No prefetch: stock and order data change constantly (also by other users), a 30s cached copy would show stale status. */}
+                            <Link href={item.url}>
                                 {item.icon && <item.icon />}
                                 <span>{item.title}</span>
                             </Link>

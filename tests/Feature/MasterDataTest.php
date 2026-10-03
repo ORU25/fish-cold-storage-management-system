@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\BoxStatus;
 use App\Models\ActivityLog;
+use App\Models\Box;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\User;
@@ -127,4 +129,25 @@ test('staff can not manage master data', function () {
     $this->actingAs($staff)->post('/products', ['fish_name' => 'MB'])->assertForbidden();
     $this->actingAs($staff)->get('/locations')->assertForbidden();
     $this->actingAs($staff)->post('/locations', ['name' => 'Blok A'])->assertForbidden();
+});
+
+test('a location can not be deactivated while boxes are still stored there', function () {
+    $admin = User::factory()->admin()->create();
+    $location = Location::factory()->create(['name' => 'Blok C']);
+    Box::factory()->count(2)->create(['location_id' => $location->id]);
+
+    $this->actingAs($admin)->put("/locations/{$location->id}", ['name' => 'Blok C', 'is_active' => false])
+        ->assertSessionHasErrors(['is_active' => 'Masih ada 2 dus di Blok C. Pindahkan dulu sebelum lokasi dinonaktifkan.']);
+
+    expect($location->fresh()->is_active)->toBeTrue();
+});
+
+test('a location whose boxes have all left can be deactivated', function () {
+    $admin = User::factory()->admin()->create();
+    $location = Location::factory()->create();
+    Box::factory()->create(['location_id' => $location->id, 'status' => BoxStatus::Outbound]);
+
+    $this->actingAs($admin)->put("/locations/{$location->id}", ['name' => $location->name, 'is_active' => false])->assertSessionHasNoErrors();
+
+    expect($location->fresh()->is_active)->toBeFalse();
 });

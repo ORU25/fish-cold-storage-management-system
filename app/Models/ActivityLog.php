@@ -48,6 +48,7 @@ class ActivityLog extends Model
             'action' => $action,
             'subject_type' => $subject?->getMorphClass(),
             'subject_id' => $subject?->getKey(),
+            'box_id' => $subject instanceof Box ? $subject->getKey() : null,
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'reason' => $reason,

@@ -5,9 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * The log grows forever, so every query here must stay index-friendly:
+ * date filters are plain ranges on created_at, and simplePaginate skips the COUNT(*) over the whole table.
+ */
 class ActivityLogController extends Controller
 {
     public function index(Request $request): Response
@@ -22,10 +27,10 @@ class ActivityLogController extends Controller
         $logs = ActivityLog::with('user:id,name,username')
             ->when($filters['user_id'] ?? null, fn ($query, $userId) => $query->where('user_id', $userId))
             ->when($filters['action'] ?? null, fn ($query, $action) => $query->where('action', $action))
-            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->whereDate('created_at', '<=', $date))
+            ->when($filters['date_from'] ?? null, fn ($query, $date) => $query->where('created_at', '>=', Carbon::parse($date)->startOfDay()))
+            ->when($filters['date_to'] ?? null, fn ($query, $date) => $query->where('created_at', '<', Carbon::parse($date)->addDay()->startOfDay()))
             ->latest('id')
-            ->paginate(50)
+            ->simplePaginate(50)
             ->withQueryString();
 
         return Inertia::render('activity-logs/index', [

@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Fish, History, LayoutGrid, MapPin, Users } from 'lucide-react';
+import { Boxes, Fish, History, LayoutGrid, MapPin, PackagePlus, QrCode, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -11,6 +11,24 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         url: '/dashboard',
         icon: LayoutGrid,
+    },
+    {
+        title: 'Barang Masuk',
+        url: '/inbound',
+        icon: PackagePlus,
+        roles: ['staff', 'admin'],
+    },
+    {
+        title: 'Stok',
+        url: '/stock',
+        icon: Boxes,
+        roles: ['owner', 'admin'],
+    },
+    {
+        title: 'Stiker QR',
+        url: '/qr-labels',
+        icon: QrCode,
+        roles: ['admin'],
     },
     {
         title: 'Produk Ikan',

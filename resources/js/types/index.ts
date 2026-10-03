@@ -42,3 +42,9 @@ export interface User {
     updated_at: string;
     [key: string]: unknown; // This allows for additional properties...
 }
+
+export interface Paginated<T> {
+    data: T[];
+    links: { url: string | null; label: string; active: boolean }[];
+    total: number;
+}

@@ -114,10 +114,17 @@ export default function LocationsIndex({ locations }: { locations: Location[] })
                             <InputError message={form.errors.description} />
                         </div>
                         {editing && (
-                            <label className="flex items-center gap-2 text-sm">
-                                <input type="checkbox" checked={form.data.is_active} onChange={(e) => form.setData('is_active', e.target.checked)} />
-                                Aktif (muncul di pilihan)
-                            </label>
+                            <div className="grid gap-2">
+                                <label className="flex items-center gap-2 text-sm">
+                                    <input
+                                        type="checkbox"
+                                        checked={form.data.is_active}
+                                        onChange={(e) => form.setData('is_active', e.target.checked)}
+                                    />
+                                    Aktif (muncul di pilihan)
+                                </label>
+                                <InputError message={form.errors.is_active} />
+                            </div>
                         )}
                         <DialogFooter>
                             <Button type="submit" disabled={form.processing}>

@@ -7,6 +7,7 @@ use Database\Factories\LocationFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Location extends Model
 {
@@ -20,5 +21,10 @@ class Location extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function boxes(): HasMany
+    {
+        return $this->hasMany(Box::class);
     }
 }

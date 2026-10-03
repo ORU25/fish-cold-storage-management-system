@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
+use App\Models\Box;
 use App\Models\Location;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -33,7 +35,19 @@ class LocationController extends Controller
 
     public function update(Request $request, Location $location): RedirectResponse
     {
-        $location->update($this->validated($request, $location));
+        $validated = $this->validated($request, $location);
+
+        if ($location->is_active && ! ($validated['is_active'] ?? true)) {
+            $boxesInStock = $location->boxes()->whereIn('status', Box::IN_STOCK)->count();
+
+            if ($boxesInStock > 0) {
+                throw ValidationException::withMessages([
+                    'is_active' => "Masih ada {$boxesInStock} dus di {$location->name}. Pindahkan dulu sebelum lokasi dinonaktifkan.",
+                ]);
+            }
+        }
+
+        $location->update($validated);
 
         ActivityLog::recordChanges('location.updated', $location);
 

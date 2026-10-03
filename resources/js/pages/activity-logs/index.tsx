@@ -2,7 +2,6 @@ import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
-import { cn } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
@@ -20,10 +19,12 @@ interface ActivityLogRow {
     user: { id: number; name: string; username: string } | null;
 }
 
-interface Paginated<T> {
+/** Laravel simplePaginate(): no total count, so the log stays fast however large it grows. */
+interface SimplePaginated<T> {
     data: T[];
-    links: { url: string | null; label: string; active: boolean }[];
-    total: number;
+    current_page: number;
+    prev_page_url: string | null;
+    next_page_url: string | null;
 }
 
 interface Filters {
@@ -61,7 +62,7 @@ export default function ActivityLogsIndex({
     users,
     actions,
 }: {
-    logs: Paginated<ActivityLogRow>;
+    logs: SimplePaginated<ActivityLogRow>;
     filters: Filters;
     users: { id: number; name: string }[];
     actions: string[];
@@ -141,22 +142,29 @@ export default function ActivityLogsIndex({
                         </tbody>
                     </table>
                 </div>
-
-                <div className="mt-4 flex flex-wrap gap-1">
-                    {logs.links.map((link, index) =>
-                        link.url ? (
-                            <Link
-                                key={index}
-                                href={link.url}
-                                preserveScroll
-                                className={cn('rounded-md border px-3 py-1 text-sm', link.active && 'bg-primary text-primary-foreground')}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                            />
-                        ) : (
-                            <span key={index} className="text-muted-foreground px-3 py-1 text-sm" dangerouslySetInnerHTML={{ __html: link.label }} />
-                        ),
-                    )}
-                </div>
+                {(logs.prev_page_url || logs.next_page_url) && (
+                    <div className="mt-4 flex items-center gap-2">
+                        <Button variant="outline" size="sm" disabled={!logs.prev_page_url} asChild={!!logs.prev_page_url}>
+                            {logs.prev_page_url ? (
+                                <Link href={logs.prev_page_url} preserveScroll>
+                                    Sebelumnya
+                                </Link>
+                            ) : (
+                                'Sebelumnya'
+                            )}
+                        </Button>
+                        <span className="text-muted-foreground text-sm">Halaman {logs.current_page}</span>
+                        <Button variant="outline" size="sm" disabled={!logs.next_page_url} asChild={!!logs.next_page_url}>
+                            {logs.next_page_url ? (
+                                <Link href={logs.next_page_url} preserveScroll>
+                                    Berikutnya
+                                </Link>
+                            ) : (
+                                'Berikutnya'
+                            )}
+                        </Button>
+                    </div>
+                )}
             </div>
         </AppLayout>
     );

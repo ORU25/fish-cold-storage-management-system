@@ -1,7 +1,7 @@
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { type BreadcrumbItem, type Role, type SharedData } from '@/types';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { Boxes, type LucideIcon, PackagePlus, QrCode } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -10,25 +10,34 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
+// ponytail: quick links only; the Owner dashboard (PRD 5.11) comes in stage 5.
+const ACTIONS: { title: string; description: string; href: string; icon: LucideIcon; roles: Role[] }[] = [
+    { title: 'Barang Masuk', description: 'Scan dus dari truk', href: '/inbound', icon: PackagePlus, roles: ['staff', 'admin'] },
+    { title: 'Stok', description: 'Rekap dan daftar dus', href: '/stock', icon: Boxes, roles: ['owner', 'admin'] },
+    { title: 'Stiker QR', description: 'Buat dan cetak stiker', href: '/qr-labels', icon: QrCode, roles: ['admin'] },
+];
+
 export default function Dashboard() {
+    const { auth } = usePage<SharedData>().props;
+    const actions = ACTIONS.filter((action) => action.roles.includes(auth.user.role));
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="border-sidebar-border/70 dark:border-sidebar-border relative aspect-video overflow-hidden rounded-xl border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                </div>
-                <div className="border-sidebar-border/70 dark:border-sidebar-border relative min-h-[100vh] flex-1 rounded-xl border md:min-h-min">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                </div>
+            <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                {actions.map((action) => (
+                    <Link
+                        key={action.href}
+                        href={action.href}
+                        className="hover:bg-muted/50 flex min-h-32 items-center gap-4 rounded-xl border p-6 transition-colors"
+                    >
+                        <action.icon className="size-10 shrink-0" />
+                        <div>
+                            <div className="text-xl font-semibold">{action.title}</div>
+                            <div className="text-muted-foreground text-sm">{action.description}</div>
+                        </div>
+                    </Link>
+                ))}
             </div>
         </AppLayout>
     );

@@ -197,7 +197,11 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                 )}
                                 {boxes.data.map((box) => (
                                     <tr key={box.id} className="border-t">
-                                        <td className="p-3 font-mono text-xs">{box.qr_code}</td>
+                                        <td className="p-3 font-mono text-xs">
+                                            <Link href={route('boxes.show', box.id)} className="hover:underline">
+                                                {box.qr_code}
+                                            </Link>
+                                        </td>
                                         <td className="p-3">{box.product.display_name}</td>
                                         <td className="p-3">{box.location?.name ?? '-'}</td>
                                         <td className="p-3">{formatDate(box.production_date)}</td>

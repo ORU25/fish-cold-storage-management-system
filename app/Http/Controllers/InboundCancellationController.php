@@ -37,7 +37,7 @@ class InboundCancellationController extends Controller
                 throw ValidationException::withMessages(['reason' => "Dus {$box->qr_code} tidak lagi di gudang, scan masuknya tidak bisa dibatalkan."]);
             }
 
-            $oldValues = $box->only('qr_code', 'inbound_batch_id', 'product_id', 'location_id', 'production_date', 'expired_date', 'scanned_in_by', 'scanned_in_at');
+            $oldValues = ActivityLog::valuesOf($box, ['qr_code', 'inbound_batch_id', 'product_id', 'location_id', 'production_date', 'expired_date', 'scanned_in_by', 'scanned_in_at']);
 
             $box->delete();
             QrLabel::lockForUpdate()->findOrFail($box->qr_label_id)->update(['status' => QrLabelStatus::Available, 'used_at' => null]);

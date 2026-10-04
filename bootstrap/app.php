@@ -15,6 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Behind an HTTPS tunnel or reverse proxy, build https URLs; the phone camera only works over HTTPS.
+        $middleware->trustProxies(at: '*');
+
         $middleware->web(append: [
             EnsureUserIsActive::class,
             HandleInertiaRequests::class,

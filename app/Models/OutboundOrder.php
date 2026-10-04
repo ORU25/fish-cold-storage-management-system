@@ -16,7 +16,7 @@ class OutboundOrder extends Model
     /** @use HasFactory<OutboundOrderFactory> */
     use HasFactory, HasUuids;
 
-    protected $fillable = ['order_number', 'destination', 'order_date', 'notes', 'status', 'close_reason', 'created_by'];
+    protected $fillable = ['order_number', 'destination', 'order_date', 'notes', 'status', 'cancel_reason', 'created_by'];
 
     protected function casts(): array
     {

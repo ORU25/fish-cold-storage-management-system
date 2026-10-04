@@ -74,10 +74,10 @@ test('boxes that are no longer in the warehouse can not be cancelled', function 
         ->and($box->qrLabel->fresh()->status)->toBe(QrLabelStatus::Used);
 })->with([BoxStatus::Outbound, BoxStatus::PendingAdjustment, BoxStatus::Lost, BoxStatus::Damaged]);
 
-test('staff and owner can not cancel an inbound scan', function (Role $role) {
+test('staff can not cancel an inbound scan', function (Role $role) {
     $box = Box::factory()->create();
 
     $this->actingAs(User::factory()->create(['role' => $role]))->post(route('boxes.cancel-inbound', $box), ['reason' => 'x'])->assertForbidden();
 
     expect(Box::find($box->id))->not->toBeNull();
-})->with([Role::Staff, Role::Owner]);
+})->with([Role::Staff]);

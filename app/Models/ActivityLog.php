@@ -75,10 +75,22 @@ class ActivityLog extends Model
         return self::record(
             $action,
             $subject,
-            $mask($previous->only($keys)),
-            $mask($subject->only($keys)),
+            $mask(self::valuesOf($previous, $keys)),
+            $mask(self::valuesOf($subject, $keys)),
             $reason,
         );
+    }
+
+    /**
+     * $model->only($keys), but serialized the way the model casts them: a `date:Y-m-d` column stays "2027-01-01"
+     * instead of a UTC timestamp that shows the previous day. Hidden columns (password) keep their raw value for masking.
+     *
+     * @param  list<string>  $keys
+     * @return array<string, mixed>
+     */
+    public static function valuesOf(Model $model, array $keys): array
+    {
+        return [...$model->only($keys), ...Arr::only($model->attributesToArray(), $keys)];
     }
 
     public function user(): BelongsTo

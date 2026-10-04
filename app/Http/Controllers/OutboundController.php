@@ -37,6 +37,7 @@ class OutboundController extends Controller
             'order' => $order,
             'pickList' => $order->status === OrderStatus::Open ? $this->pickList($order) : [],
             'recentScans' => OutboundScan::whereIn('outbound_order_item_id', $order->items->pluck('id'))
+                ->whereNull('cancelled_at')
                 ->with(['box:id,qr_code,product_id,expired_date', 'box.product:id,display_name'])
                 ->latest()
                 ->limit(10)

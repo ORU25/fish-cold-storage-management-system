@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\ValidationException;
 
 class Box extends Model
 {
@@ -75,5 +76,31 @@ class Box extends Model
     public function scannedInBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'scanned_in_by');
+    }
+
+    /**
+     * Only boxes still in the warehouse can be revised or moved; boxes that left, or were lost or damaged, are history.
+     */
+    public function isInStock(): bool
+    {
+        return in_array($this->status, self::IN_STOCK, true);
+    }
+
+    /**
+     * Move to another location and log it (rancangan 4.7). Call inside a transaction with the box locked.
+     * Errors are reported under $errorKey so each screen can show them next to its own field.
+     */
+    public function moveTo(Location $location, string $errorKey = 'location_id'): void
+    {
+        if (! $this->isInStock()) {
+            throw ValidationException::withMessages([$errorKey => "Dus {$this->qr_code} tidak lagi di gudang, lokasinya tidak bisa diubah."]);
+        }
+
+        if ($this->location_id === $location->id) {
+            throw ValidationException::withMessages([$errorKey => "Dus {$this->qr_code} sudah di {$location->name}."]);
+        }
+
+        $this->update(['location_id' => $location->id]);
+        ActivityLog::recordChanges('box.location_changed', $this);
     }
 }

@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Role, type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { Boxes, ClipboardList, type LucideIcon, PackageMinus, PackagePlus, QrCode } from 'lucide-react';
+import { ArrowLeftRight, Boxes, ClipboardList, type LucideIcon, PackageMinus, PackagePlus, QrCode } from 'lucide-react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -16,12 +16,13 @@ const ACTIONS: { title: string; description: string; href: string; icon: LucideI
     { title: 'Barang Keluar', description: 'Scan dus sesuai order', href: '/outbound', icon: PackageMinus, roles: ['staff', 'admin'] },
     { title: 'Order Keluar', description: 'Buat dan pantau order', href: '/orders', icon: ClipboardList, roles: ['admin'] },
     { title: 'Stok', description: 'Rekap dan daftar dus', href: '/stock', icon: Boxes, roles: ['owner', 'admin'] },
+    { title: 'Pindah Lokasi', description: 'Scan dus ke lokasi baru', href: '/box-moves', icon: ArrowLeftRight, roles: ['admin'] },
     { title: 'Stiker QR', description: 'Buat dan cetak stiker', href: '/qr-labels', icon: QrCode, roles: ['admin'] },
 ];
 
 export default function Dashboard() {
     const { auth } = usePage<SharedData>().props;
-    const actions = ACTIONS.filter((action) => action.roles.includes(auth.user.role));
+    const actions = ACTIONS.filter((action) => auth.user.role === 'owner' || action.roles.includes(auth.user.role));
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>

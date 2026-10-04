@@ -1,5 +1,7 @@
+import { CameraScanner } from '@/components/camera-scanner';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { CheckCircle2, ScanLine, TriangleAlert, WifiOff, XCircle } from 'lucide-react';
+import { Camera, CameraOff, CheckCircle2, ScanLine, TriangleAlert, WifiOff, XCircle } from 'lucide-react';
 import { FormEventHandler, useEffect, useRef, useState } from 'react';
 
 export type ScanFeedbackType = 'success' | 'warning' | 'error';
@@ -60,9 +62,16 @@ const STYLES: Record<ScanFeedbackType, { className: string; icon: typeof CheckCi
     error: { className: 'border-red-600 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200', icon: XCircle },
 };
 
+/** Phones and tablets get the camera on by default; PCs use a keyboard-mode scanner and can switch the camera on. */
+function isTouchDevice() {
+    return typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+}
+
 /**
- * Shared scan field (PRD 5.12): works with a keyboard-mode scanner (types the code then Enter),
+ * Shared scan field (PRD 5.12): works with a keyboard-mode scanner (types the code then Enter) or the device camera,
  * stays focused, locks while a scan is processing and refuses scans while offline.
+ * With the camera on the text field is not auto-focused, so the phone keyboard does not keep popping up;
+ * it can still be tapped to type a code by hand when a sticker is damaged.
  */
 export function ScanInput({
     onScan,
@@ -80,6 +89,7 @@ export function ScanInput({
     const [code, setCode] = useState('');
     const online = useOnline();
     const disabled = processing || !online || Boolean(lockedMessage);
+    const [cameraOn, setCameraOn] = useState(isTouchDevice);
 
     useEffect(() => {
         if (feedback) {
@@ -88,13 +98,16 @@ export function ScanInput({
     }, [feedback]);
 
     useEffect(() => {
-        if (!disabled) {
+        if (!disabled && !cameraOn) {
             inputRef.current?.focus();
         }
-    }, [disabled, feedback]);
+    }, [disabled, feedback, cameraOn]);
 
     // Tapping anywhere that is not another form control brings focus back to the scan field.
     useEffect(() => {
+        if (cameraOn) {
+            return;
+        }
         const refocus = (event: PointerEvent) => {
             if (!(event.target as HTMLElement).closest('input, select, textarea, button, a, [role="combobox"], [role="dialog"]')) {
                 inputRef.current?.focus();
@@ -102,7 +115,7 @@ export function ScanInput({
         };
         document.addEventListener('pointerup', refocus);
         return () => document.removeEventListener('pointerup', refocus);
-    }, []);
+    }, [cameraOn]);
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -124,22 +137,35 @@ export function ScanInput({
                     Koneksi terputus. Scan tidak diterima sampai jaringan kembali.
                 </div>
             )}
-            <form onSubmit={submit} className="relative">
-                <ScanLine className="text-muted-foreground absolute top-1/2 left-4 size-6 -translate-y-1/2" />
-                <input
-                    ref={inputRef}
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    disabled={disabled}
-                    autoFocus
-                    autoComplete="off"
-                    autoCapitalize="characters"
-                    spellCheck={false}
-                    enterKeyHint="go"
-                    placeholder={lockedMessage ?? (processing ? 'Memproses…' : 'Scan atau ketik kode QR lalu Enter')}
-                    aria-label="Kode QR"
-                    className="border-input bg-background focus-visible:ring-ring h-16 w-full rounded-xl border-2 pr-4 pl-14 font-mono text-xl uppercase focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
-                />
+            {cameraOn && <CameraScanner onScan={onScan} paused={disabled} />}
+            <form onSubmit={submit} className="flex gap-2">
+                <div className="relative flex-1">
+                    <ScanLine className="text-muted-foreground absolute top-1/2 left-4 size-6 -translate-y-1/2" />
+                    <input
+                        ref={inputRef}
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        disabled={disabled}
+                        autoFocus={!cameraOn}
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        spellCheck={false}
+                        enterKeyHint="go"
+                        placeholder={lockedMessage ?? (processing ? 'Memproses…' : 'Scan atau ketik kode QR lalu Enter')}
+                        aria-label="Kode QR"
+                        className="border-input bg-background focus-visible:ring-ring h-16 w-full rounded-xl border-2 pr-4 pl-14 font-mono text-xl uppercase focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60"
+                    />
+                </div>
+                <Button
+                    type="button"
+                    variant="outline"
+                    className="h-16 shrink-0 px-4"
+                    onClick={() => setCameraOn((on) => !on)}
+                    aria-label={cameraOn ? 'Tutup kamera' : 'Scan dengan kamera'}
+                >
+                    {cameraOn ? <CameraOff className="size-6" /> : <Camera className="size-6" />}
+                    <span className="hidden sm:inline">{cameraOn ? 'Tutup kamera' : 'Kamera'}</span>
+                </Button>
             </form>
             {feedback && style && (
                 <div

@@ -7,6 +7,7 @@ use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -52,5 +53,17 @@ class Product extends Model
     public static function makeCode(string $fishName, string $grade, string $size): string
     {
         return Str::upper(Str::slug(self::makeDisplayName($fishName, $grade, $size)));
+    }
+
+    /**
+     * Expiry date from a production date and this product's shelf life, or null when either is missing.
+     */
+    public function expiryFrom(?string $productionDate): ?string
+    {
+        if ($productionDate === null || $this->shelf_life_days === null) {
+            return null;
+        }
+
+        return Carbon::parse($productionDate)->addDays($this->shelf_life_days)->toDateString();
     }
 }

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\BoxStatus;
 use App\Enums\OrderStatus;
 use App\Http\Requests\OutboundOrderRequest;
 use App\Models\ActivityLog;
+use App\Models\Box;
 use App\Models\OutboundOrder;
 use App\Models\OutboundScan;
 use App\Models\Product;
@@ -17,8 +19,8 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Admin manages outbound orders (PRD 5.5): draft -> open -> completed (after a manual check once every item is scanned),
- * or closed early with a reason; drafts can be cancelled.
+ * Admin manages outbound orders (PRD 5.5): draft -> open -> completed (after a manual check once every item is scanned).
+ * Draft and open orders can be cancelled; scanned boxes then go back to the warehouse.
  * Only open orders reserve stock and appear on the staff outbound screen.
  */
 class OutboundOrderController extends Controller
@@ -77,7 +79,7 @@ class OutboundOrderController extends Controller
             'order' => $order,
             'available' => OutboundOrder::availableStock($order->items->pluck('product_id')->all(), except: $order),
             'scans' => OutboundScan::whereIn('outbound_order_item_id', $order->items->pluck('id'))
-                ->with(['box:id,qr_code,product_id,location_id,expired_date', 'box.product:id,display_name', 'box.location:id,name', 'scannedBy:id,name'])
+                ->with(['box:id,qr_code,product_id,location_id,expired_date', 'box.product:id,display_name', 'box.location:id,name', 'scannedBy:id,name', 'cancelledBy:id,name'])
                 ->latest()
                 ->get(),
         ]);
@@ -125,13 +127,35 @@ class OutboundOrderController extends Controller
         return to_route('orders.show', $order);
     }
 
-    public function cancel(OutboundOrder $order): RedirectResponse
+    /**
+     * Cancel a draft or open order. A partial order is cancelled and re-created with what the buyer can take,
+     * so cancelling an open order returns its scanned boxes to the warehouse and needs a reason.
+     */
+    public function cancel(Request $request, OutboundOrder $order): RedirectResponse
     {
-        DB::transaction(function () use ($order): void {
+        $reason = $request->validate(['cancel_reason' => ['nullable', 'string', 'max:1000']])['cancel_reason'] ?? null;
+
+        DB::transaction(function () use ($order, $reason): void {
             $order = OutboundOrder::lockForUpdate()->findOrFail($order->id);
-            $this->ensureStatus($order, OrderStatus::Draft, 'Hanya order draft yang bisa dibatalkan.');
-            $order->update(['status' => OrderStatus::Cancelled]);
-            ActivityLog::recordChanges('order.cancelled', $order);
+
+            if (! in_array($order->status, [OrderStatus::Draft, OrderStatus::Open], true)) {
+                throw ValidationException::withMessages(['order' => 'Hanya order draft atau open yang bisa dibatalkan.']);
+            }
+
+            if ($order->status === OrderStatus::Open && blank($reason)) {
+                throw ValidationException::withMessages(['cancel_reason' => 'Alasan wajib diisi untuk membatalkan order yang sudah dibuka.']);
+            }
+
+            $order->boxes()->where('status', BoxStatus::Outbound)->lockForUpdate()->get()->each(function (Box $box) use ($order, $reason): void {
+                $box->update(['status' => BoxStatus::InWarehouse, 'outbound_order_id' => null, 'scanned_out_by' => null, 'scanned_out_at' => null]);
+                ActivityLog::record('box.outbound_cancelled', $box, ['status' => BoxStatus::Outbound->value, 'order_number' => $order->order_number], ['status' => BoxStatus::InWarehouse->value], $reason);
+            });
+
+            OutboundScan::whereIn('outbound_order_item_id', $order->items()->select('id'))->whereNull('cancelled_at')
+                ->update(['cancelled_at' => now(), 'cancelled_by' => auth()->id(), 'cancel_reason' => $reason]);
+            $order->items()->update(['quantity_scanned' => 0]);
+            $order->update(['status' => OrderStatus::Cancelled, 'cancel_reason' => $reason]);
+            ActivityLog::recordChanges('order.cancelled', $order, $reason);
         });
 
         return to_route('orders.show', $order);
@@ -147,28 +171,11 @@ class OutboundOrderController extends Controller
             $this->ensureStatus($order, OrderStatus::Open, 'Hanya order open yang bisa diselesaikan.');
 
             if (! $order->isFullyScanned()) {
-                throw ValidationException::withMessages(['order' => 'Masih ada item yang belum terpenuhi. Gunakan Tutup order jika sisanya memang tidak dikirim.']);
+                throw ValidationException::withMessages(['order' => 'Masih ada item yang belum terpenuhi. Jika pembeli hanya mengambil sebagian, batalkan order lalu buat order baru.']);
             }
 
             $order->update(['status' => OrderStatus::Completed]);
             ActivityLog::recordChanges('order.completed', $order);
-        });
-
-        return to_route('orders.show', $order);
-    }
-
-    /**
-     * Close an open order before it is fulfilled; the remaining quantities stop reserving stock.
-     */
-    public function close(Request $request, OutboundOrder $order): RedirectResponse
-    {
-        $validated = $request->validate(['close_reason' => ['required', 'string', 'max:1000']]);
-
-        DB::transaction(function () use ($order, $validated): void {
-            $order = OutboundOrder::lockForUpdate()->findOrFail($order->id);
-            $this->ensureStatus($order, OrderStatus::Open, 'Hanya order open yang bisa ditutup.');
-            $order->update(['status' => OrderStatus::Closed, 'close_reason' => $validated['close_reason']]);
-            ActivityLog::recordChanges('order.closed', $order, $validated['close_reason']);
         });
 
         return to_route('orders.show', $order);

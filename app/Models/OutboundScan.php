@@ -10,12 +10,13 @@ class OutboundScan extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['outbound_order_item_id', 'box_id', 'scanned_by', 'fefo_violation', 'fefo_reason'];
+    protected $fillable = ['outbound_order_item_id', 'box_id', 'scanned_by', 'fefo_violation', 'fefo_reason', 'cancelled_at', 'cancelled_by', 'cancel_reason'];
 
     protected function casts(): array
     {
         return [
             'fefo_violation' => 'boolean',
+            'cancelled_at' => 'datetime',
         ];
     }
 
@@ -32,5 +33,10 @@ class OutboundScan extends Model
     public function scannedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'scanned_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 }

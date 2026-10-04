@@ -1,3 +1,4 @@
+import { CancelScanButton } from '@/components/cancel-scan-button';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,7 +13,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { LoaderCircle } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
-type OrderAction = 'orders.open' | 'orders.cancel' | 'orders.complete';
+type OrderAction = 'orders.open' | 'orders.complete';
 
 interface Order {
     id: string;
@@ -21,7 +22,7 @@ interface Order {
     order_date: string;
     notes: string | null;
     status: string;
-    close_reason: string | null;
+    cancel_reason: string | null;
     created_by: { id: string; name: string };
     items: { id: string; product_id: string; quantity_requested: number; quantity_scanned: number; product: { display_name: string } }[];
 }
@@ -31,15 +32,19 @@ interface Scan {
     created_at: string;
     fefo_violation: boolean;
     fefo_reason: string | null;
+    cancelled_at: string | null;
+    cancel_reason: string | null;
+    cancelled_by: { name: string } | null;
     scanned_by: { name: string };
     box: { qr_code: string; expired_date: string; product: { display_name: string }; location: { name: string } | null };
 }
 
 export default function OrderShow({ order, available, scans }: { order: Order; available: Record<string, number>; scans: Scan[] }) {
     const { errors } = usePage().props as { errors: Record<string, string> };
-    const [closing, setClosing] = useState(false);
+    const [cancelling, setCancelling] = useState(false);
     const isFullyScanned = order.items.every((item) => item.quantity_scanned >= item.quantity_requested);
-    const closeForm = useForm({ close_reason: '' });
+    const cancelForm = useForm({ cancel_reason: '' });
+    const isOpen = order.status === 'open';
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Order Keluar', href: '/orders' },
         { title: order.order_number, href: route('orders.show', order.id) },
@@ -47,7 +52,7 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
 
     // Which status action is running, so its button shows a spinner and the others stay locked until the page reloads.
     const [pending, setPending] = useState<OrderAction | null>(null);
-    const busy = pending !== null || closeForm.processing;
+    const busy = pending !== null || cancelForm.processing;
 
     const post = (name: OrderAction, question: string) => {
         if (confirm(question)) {
@@ -64,9 +69,9 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
             text
         );
 
-    const close: FormEventHandler = (e) => {
+    const cancel: FormEventHandler = (e) => {
         e.preventDefault();
-        closeForm.post(route('orders.close', order.id), { preserveScroll: true, onSuccess: () => setClosing(false) });
+        cancelForm.post(route('orders.cancel', order.id), { preserveScroll: true, onSuccess: () => setCancelling(false) });
     };
 
     return (
@@ -83,16 +88,13 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                             {order.destination} · {formatDate(order.order_date)} · dibuat oleh {order.created_by.name}
                         </p>
                         {order.notes && <p className="mt-1 text-sm">{order.notes}</p>}
-                        {order.close_reason && <p className="mt-1 text-sm">Alasan ditutup: {order.close_reason}</p>}
+                        {order.cancel_reason && <p className="mt-1 text-sm">Alasan dibatalkan: {order.cancel_reason}</p>}
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {order.status === 'draft' && (
                             <>
                                 <Button variant="outline" asChild>
                                     <Link href={route('orders.edit', order.id)}>Ubah</Link>
-                                </Button>
-                                <Button variant="outline" disabled={busy} onClick={() => post('orders.cancel', 'Batalkan draft order ini?')}>
-                                    {label('orders.cancel', 'Batalkan')}
                                 </Button>
                                 <Button
                                     disabled={busy}
@@ -110,9 +112,9 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                                 {label('orders.complete', 'Selesaikan order')}
                             </Button>
                         )}
-                        {order.status === 'open' && (
-                            <Button variant="destructive" disabled={busy} onClick={() => setClosing(true)}>
-                                Tutup order
+                        {(order.status === 'draft' || isOpen) && (
+                            <Button variant="destructive" disabled={busy} onClick={() => setCancelling(true)}>
+                                Batalkan order
                             </Button>
                         )}
                     </div>
@@ -157,7 +159,7 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                 </div>
 
                 <section>
-                    <h2 className="mb-3 font-semibold">Dus keluar ({scans.length})</h2>
+                    <h2 className="mb-3 font-semibold">Riwayat scan keluar ({scans.filter((scan) => !scan.cancelled_at).length} dus keluar)</h2>
                     <div className="overflow-x-auto rounded-lg border">
                         <table className="w-full text-sm">
                             <thead className="bg-muted/50 text-left">
@@ -168,18 +170,19 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                                     <th className="p-3">Expired</th>
                                     <th className="p-3">Staf</th>
                                     <th className="p-3">FEFO</th>
+                                    <th className="p-3">Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {scans.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                                        <td colSpan={7} className="text-muted-foreground p-6 text-center">
                                             Belum ada dus keluar.
                                         </td>
                                     </tr>
                                 )}
                                 {scans.map((scan) => (
-                                    <tr key={scan.id} className="border-t align-top">
+                                    <tr key={scan.id} className={`border-t align-top ${scan.cancelled_at ? 'text-muted-foreground' : ''}`}>
                                         <td className="p-3 whitespace-nowrap">{formatDateTime(scan.created_at)}</td>
                                         <td className="p-3 font-mono text-xs">{scan.box.qr_code}</td>
                                         <td className="p-3">{scan.box.product.display_name}</td>
@@ -195,6 +198,24 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                                                 '-'
                                             )}
                                         </td>
+                                        <td className="p-3">
+                                            {scan.cancelled_at ? (
+                                                <div>
+                                                    <Badge variant="secondary">Dibatalkan</Badge>
+                                                    <div className="mt-1 text-xs">
+                                                        {scan.cancelled_by?.name}: {scan.cancel_reason ?? '-'}
+                                                    </div>
+                                                </div>
+                                            ) : isOpen ? (
+                                                <CancelScanButton
+                                                    url={route('outbound-scans.cancel', scan.id)}
+                                                    title={`Batalkan scan keluar ${scan.box.qr_code}?`}
+                                                    description="Dus kembali ke gudang dan item order kembali butuh satu dus. Riwayat scan dan alasannya tetap tercatat."
+                                                />
+                                            ) : (
+                                                'Keluar'
+                                            )}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -203,31 +224,35 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                 </section>
             </div>
 
-            <Dialog open={closing} onOpenChange={setClosing}>
+            <Dialog open={cancelling} onOpenChange={setCancelling}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Tutup order {order.order_number}?</DialogTitle>
-                        <DialogDescription>Sisa item tidak akan dikeluarkan dan stok yang dipesan dilepas.</DialogDescription>
+                        <DialogTitle>Batalkan order {order.order_number}?</DialogTitle>
+                        <DialogDescription>
+                            {isOpen
+                                ? 'Stok yang dipesan dilepas dan semua dus yang sudah discan kembali ke gudang. Jika pembeli hanya mengambil sebagian, buat order baru sesuai jumlahnya.'
+                                : 'Order draft ini tidak akan diproses.'}
+                        </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={close} className="grid gap-4">
+                    <form onSubmit={cancel} className="grid gap-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="close_reason">Alasan</Label>
+                            <Label htmlFor="cancel_reason">Alasan{isOpen ? '' : ' (opsional)'}</Label>
                             <Input
-                                id="close_reason"
-                                value={closeForm.data.close_reason}
-                                onChange={(e) => closeForm.setData('close_reason', e.target.value)}
-                                required
+                                id="cancel_reason"
+                                value={cancelForm.data.cancel_reason}
+                                onChange={(e) => cancelForm.setData('cancel_reason', e.target.value)}
+                                required={isOpen}
                             />
-                            <InputError message={closeForm.errors.close_reason} />
+                            <InputError message={cancelForm.errors.cancel_reason} />
                         </div>
                         <DialogFooter>
-                            <Button type="submit" variant="destructive" disabled={closeForm.processing}>
-                                {closeForm.processing ? (
+                            <Button type="submit" variant="destructive" disabled={cancelForm.processing}>
+                                {cancelForm.processing ? (
                                     <>
                                         <LoaderCircle className="size-4 animate-spin" /> Memproses…
                                     </>
                                 ) : (
-                                    'Tutup order'
+                                    'Batalkan order'
                                 )}
                             </Button>
                         </DialogFooter>

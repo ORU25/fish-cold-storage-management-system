@@ -51,8 +51,11 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * The Owner passes every role check (rancangan 2).
+     */
     public function hasRole(Role ...$roles): bool
     {
-        return in_array($this->role, $roles, true);
+        return $this->role === Role::Owner || in_array($this->role, $roles, true);
     }
 }

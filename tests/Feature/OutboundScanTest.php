@@ -103,7 +103,7 @@ test('orders that are not open accept no scans', function (OrderStatus $status) 
     $this->actingAs($staff)->post(route('outbound.scans.store', $order), ['code' => $box->qr_code])->assertSessionHasErrors('code');
 
     expect($box->fresh()->status)->toBe(BoxStatus::InWarehouse);
-})->with([OrderStatus::Draft, OrderStatus::Completed, OrderStatus::Closed, OrderStatus::Cancelled]);
+})->with([OrderStatus::Draft, OrderStatus::Completed, OrderStatus::Cancelled]);
 
 test('a box with an earlier-expiring match still in stock needs a FEFO reason', function () {
     $staff = User::factory()->create();
@@ -160,7 +160,7 @@ test('the pick list recommends the earliest-expiring boxes, grouped by date and 
             ->where('pickList', [['product' => 'MB A 3-5', 'remaining' => 3, 'groups' => $groups]]));
 });
 
-test('only open orders are listed for staff, and owner can not do outbound', function () {
+test('only open orders are listed for staff, and owner can do outbound too', function () {
     $staff = User::factory()->create();
     $product = Product::factory()->create();
     $open = openOrderFor($product, 1);
@@ -170,6 +170,6 @@ test('only open orders are listed for staff, and owner can not do outbound', fun
         ->assertInertia(fn ($page) => $page->has('orders', 1)->where('orders.0.id', $open->id));
 
     $owner = User::factory()->owner()->create();
-    $this->actingAs($owner)->get('/outbound')->assertForbidden();
-    $this->actingAs($owner)->post(route('outbound.scans.store', $open), ['code' => 'x'])->assertForbidden();
+    $this->actingAs($owner)->get('/outbound')->assertOk();
+    $this->actingAs($owner)->post(route('outbound.scans.store', $open), ['code' => 'x'])->assertSessionHasErrors('code');
 });

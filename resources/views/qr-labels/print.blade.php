@@ -27,7 +27,7 @@
 <body>
     <div class="toolbar">
         <button type="button" onclick="window.print()">Cetak</button>
-        <a href="{{ route('qr-labels.index') }}">Kembali</a>
+        <a href="{{ route('qr-labels.show', $batch) }}">Kembali</a>
         <span>{{ $labels->count() }} stiker &middot; dibuat {{ $batch->created_at->timezone(config('app.timezone'))->format('d/m/Y H:i') }} &middot; stiker void tidak ikut dicetak</span>
     </div>
     <div class="sheet">

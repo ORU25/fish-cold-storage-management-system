@@ -11,7 +11,6 @@ use App\Models\InboundBatch;
 use App\Models\Product;
 use App\Models\QrLabel;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -28,7 +27,7 @@ class InboundScanController extends Controller
         }
 
         $validated = $request->validated();
-        $expiredDate = $validated['expired_date'] ?? $this->expiredDateFromProduction($validated['product_id'], $validated['production_date'] ?? null);
+        $expiredDate = $validated['expired_date'] ?? Product::findOrFail($validated['product_id'])->expiryFrom($validated['production_date'] ?? null);
 
         if ($expiredDate === null) {
             throw ValidationException::withMessages(['expired_date' => 'Isi tanggal expired, atau tanggal produksi untuk produk yang punya masa simpan.']);
@@ -63,20 +62,9 @@ class InboundScanController extends Controller
 
             $label->update(['status' => QrLabelStatus::Used, 'used_at' => now()]);
 
-            ActivityLog::record('box.scanned_in', $box, newValues: $box->only('qr_code', 'inbound_batch_id', 'product_id', 'location_id', 'production_date', 'expired_date'));
+            ActivityLog::record('box.scanned_in', $box, newValues: ActivityLog::valuesOf($box, ['qr_code', 'inbound_batch_id', 'product_id', 'location_id', 'production_date', 'expired_date']));
         });
 
         return back();
-    }
-
-    private function expiredDateFromProduction(string $productId, ?string $productionDate): ?string
-    {
-        $shelfLifeDays = Product::whereKey($productId)->value('shelf_life_days');
-
-        if ($productionDate === null || $shelfLifeDays === null) {
-            return null;
-        }
-
-        return Carbon::parse($productionDate)->addDays($shelfLifeDays)->toDateString();
     }
 }

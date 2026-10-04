@@ -107,7 +107,7 @@ test('active scope hides deactivated masters', function () {
     expect(Product::active()->pluck('id')->all())->toBe([$active->id]);
 });
 
-test('owner can manage products but not locations', function () {
+test('owner can manage products and locations', function () {
     $owner = User::factory()->owner()->create();
 
     $this->actingAs($owner)->get('/products')->assertOk();
@@ -118,8 +118,8 @@ test('owner can manage products but not locations', function () {
     expect($product->fresh()->display_name)->toBe('MB B')
         ->and(ActivityLog::where('action', 'product.updated')->value('user_id'))->toBe($owner->id);
 
-    $this->actingAs($owner)->get('/locations')->assertForbidden();
-    $this->actingAs($owner)->post('/locations', ['name' => 'Blok A'])->assertForbidden();
+    $this->actingAs($owner)->get('/locations')->assertOk();
+    $this->actingAs($owner)->post('/locations', ['name' => 'Blok A'])->assertSessionHasNoErrors();
 });
 
 test('staff can not manage master data', function () {

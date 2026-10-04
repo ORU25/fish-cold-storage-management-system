@@ -65,7 +65,7 @@ test('available stock is boxes in the warehouse minus what other open orders sti
     Box::factory()->create(['product_id' => $product->id, 'status' => BoxStatus::Outbound]);
     $open = orderWithItem($product, 3, scanned: 1);
     orderWithItem($product, 10, OrderStatus::Draft);
-    orderWithItem($product, 10, OrderStatus::Closed);
+    orderWithItem($product, 10, OrderStatus::Cancelled);
 
     expect(OutboundOrder::availableStock([$product->id]))->toBe([$product->id => 3])
         ->and(OutboundOrder::availableStock([$product->id], except: $open))->toBe([$product->id => 5]);
@@ -96,7 +96,7 @@ test('opening a draft re-checks stock taken by orders opened in the meantime', f
     expect($draft->fresh()->status)->toBe(OrderStatus::Draft);
 });
 
-test('only drafts can be edited or cancelled', function () {
+test('only drafts can be edited', function () {
     $admin = User::factory()->admin()->create();
     $product = Product::factory()->create();
     Box::factory()->count(5)->create(['product_id' => $product->id]);
@@ -108,27 +108,46 @@ test('only drafts can be edited or cancelled', function () {
         ->and($draft->items()->sole()->quantity_requested)->toBe(2);
 
     $this->actingAs($admin)->put(route('orders.update', $open), orderPayload([$product->id => 2]))->assertSessionHasErrors('order');
-    $this->actingAs($admin)->post(route('orders.cancel', $open))->assertSessionHasErrors('order');
-
-    $this->actingAs($admin)->post(route('orders.cancel', $draft))->assertSessionHasNoErrors();
-    expect($draft->fresh()->status)->toBe(OrderStatus::Cancelled)
-        ->and($open->fresh()->status)->toBe(OrderStatus::Open);
+    expect($open->fresh()->status)->toBe(OrderStatus::Open);
 });
 
-test('an open order can be closed early with a reason, releasing its reserved stock', function () {
+test('a draft can be cancelled without a reason', function () {
+    $draft = orderWithItem(Product::factory()->create(), 1, OrderStatus::Draft);
+
+    $this->actingAs(User::factory()->admin()->create())->post(route('orders.cancel', $draft))->assertSessionHasNoErrors();
+
+    expect($draft->fresh()->status)->toBe(OrderStatus::Cancelled)
+        ->and(ActivityLog::where('action', 'order.cancelled')->exists())->toBeTrue();
+});
+
+test('cancelling an open order needs a reason and returns its scanned boxes to the warehouse', function () {
     $admin = User::factory()->admin()->create();
     $product = Product::factory()->create();
-    Box::factory()->count(5)->create(['product_id' => $product->id]);
-    $order = orderWithItem($product, 4, scanned: 1);
+    Box::factory()->count(3)->create(['product_id' => $product->id]);
+    $order = orderWithItem($product, 4, scanned: 2);
+    $scanned = Box::factory()->count(2)->create(['product_id' => $product->id, 'status' => BoxStatus::Outbound, 'outbound_order_id' => $order->id]);
 
-    $this->actingAs($admin)->post(route('orders.close', $order), [])->assertSessionHasErrors('close_reason');
-    expect(OutboundOrder::availableStock([$product->id]))->toBe([$product->id => 2]);
+    $this->actingAs($admin)->post(route('orders.cancel', $order), [])->assertSessionHasErrors('cancel_reason');
+    expect($order->fresh()->status)->toBe(OrderStatus::Open)
+        ->and(OutboundOrder::availableStock([$product->id]))->toBe([$product->id => 1]);
 
-    $this->actingAs($admin)->post(route('orders.close', $order), ['close_reason' => 'Customer batal'])->assertSessionHasNoErrors();
+    $this->actingAs($admin)->post(route('orders.cancel', $order), ['cancel_reason' => 'Pembeli hanya sanggup 2 dus'])->assertSessionHasNoErrors();
 
-    expect($order->fresh())->status->toBe(OrderStatus::Closed)->close_reason->toBe('Customer batal')
+    expect($order->fresh())->status->toBe(OrderStatus::Cancelled)->cancel_reason->toBe('Pembeli hanya sanggup 2 dus')
+        ->and($scanned->map->fresh()->pluck('status')->unique()->all())->toBe([BoxStatus::InWarehouse])
+        ->and($scanned->first()->fresh()->outbound_order_id)->toBeNull()
+        ->and($order->items()->sole()->quantity_scanned)->toBe(0)
         ->and(OutboundOrder::availableStock([$product->id]))->toBe([$product->id => 5])
-        ->and(ActivityLog::firstWhere('action', 'order.closed')->reason)->toBe('Customer batal');
+        ->and(ActivityLog::where('action', 'box.outbound_cancelled')->count())->toBe(2)
+        ->and(ActivityLog::firstWhere('action', 'order.cancelled')->reason)->toBe('Pembeli hanya sanggup 2 dus');
+});
+
+test('a completed order can not be cancelled', function () {
+    $order = orderWithItem(Product::factory()->create(), 1, OrderStatus::Completed, scanned: 1);
+
+    $this->actingAs(User::factory()->admin()->create())->post(route('orders.cancel', $order), ['cancel_reason' => 'x'])->assertSessionHasErrors('order');
+
+    expect($order->fresh()->status)->toBe(OrderStatus::Completed);
 });
 
 test('admin completes an order only after every item is scanned', function () {
@@ -151,9 +170,9 @@ test('only open orders can be completed', function (OrderStatus $status) {
     $this->actingAs(User::factory()->admin()->create())->post(route('orders.complete', $order))->assertSessionHasErrors('order');
 
     expect($order->fresh()->status)->toBe($status);
-})->with([OrderStatus::Draft, OrderStatus::Closed, OrderStatus::Cancelled]);
+})->with([OrderStatus::Draft, OrderStatus::Cancelled]);
 
-test('only admin can manage orders', function (Role $role) {
+test('staff can not manage orders', function (Role $role) {
     $user = User::factory()->create(['role' => $role]);
     $order = OutboundOrder::factory()->create();
 
@@ -161,5 +180,5 @@ test('only admin can manage orders', function (Role $role) {
     $this->actingAs($user)->post('/orders', [])->assertForbidden();
     $this->actingAs($user)->post(route('orders.open', $order))->assertForbidden();
     $this->actingAs($user)->post(route('orders.complete', $order))->assertForbidden();
-    $this->actingAs($user)->post(route('orders.close', $order), ['close_reason' => 'x'])->assertForbidden();
-})->with([Role::Staff, Role::Owner]);
+    $this->actingAs($user)->post(route('orders.cancel', $order), ['cancel_reason' => 'x'])->assertForbidden();
+})->with([Role::Staff]);

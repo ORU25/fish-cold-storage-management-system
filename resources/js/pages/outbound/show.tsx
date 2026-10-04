@@ -1,3 +1,4 @@
+import { CancelScanButton } from '@/components/cancel-scan-button';
 import InputError from '@/components/input-error';
 import { ScanInput, type ScanFeedback } from '@/components/scan-input';
 import { Button } from '@/components/ui/button';
@@ -230,6 +231,13 @@ export default function OutboundShow({ order, pickList, recentScans }: { order: 
                                     <span className="min-w-0 flex-1 truncate">{scan.box.product.display_name}</span>
                                     {scan.fefo_violation && <span className="text-xs font-semibold text-amber-600">FEFO</span>}
                                     <span className="text-muted-foreground whitespace-nowrap">Exp {formatDate(scan.box.expired_date)}</span>
+                                    {isOpen && (
+                                        <CancelScanButton
+                                            url={route('outbound-scans.cancel', scan.id)}
+                                            title={`Batalkan scan keluar ${scan.box.qr_code}?`}
+                                            description="Dus kembali ke gudang dan item order kembali butuh satu dus. Riwayat scan dan alasannya tetap tercatat."
+                                        />
+                                    )}
                                 </li>
                             ))}
                         </ul>

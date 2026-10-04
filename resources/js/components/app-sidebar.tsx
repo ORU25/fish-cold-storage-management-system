@@ -3,7 +3,7 @@ import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Boxes, ClipboardList, Fish, History, LayoutGrid, MapPin, PackageMinus, PackagePlus, QrCode, Users } from 'lucide-react';
+import { ArrowLeftRight, Boxes, ClipboardList, Fish, History, LayoutGrid, MapPin, PackageMinus, PackagePlus, QrCode, Users } from 'lucide-react';
 import AppLogo from './app-logo';
 
 const mainNavItems: NavItem[] = [
@@ -35,6 +35,12 @@ const mainNavItems: NavItem[] = [
         url: '/stock',
         icon: Boxes,
         roles: ['owner', 'admin'],
+    },
+    {
+        title: 'Pindah Lokasi',
+        url: '/box-moves',
+        icon: ArrowLeftRight,
+        roles: ['admin'],
     },
     {
         title: 'Stiker QR',
@@ -70,7 +76,7 @@ const mainNavItems: NavItem[] = [
 
 export function AppSidebar() {
     const { auth } = usePage<SharedData>().props;
-    const items = mainNavItems.filter((item) => !item.roles || item.roles.includes(auth.user.role));
+    const items = mainNavItems.filter((item) => !item.roles || auth.user.role === 'owner' || item.roles.includes(auth.user.role));
 
     return (
         <Sidebar collapsible="icon" variant="inset">

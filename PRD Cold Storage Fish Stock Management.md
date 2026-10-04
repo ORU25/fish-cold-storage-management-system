@@ -36,13 +36,13 @@ Angka target di atas adalah usulan awal dan perlu dikonfirmasi pemilik.
 
 ## 3. Pengguna
 
-Ada tiga role tetap. Pemisahan tugasnya sengaja dibuat supaya tidak ada satu orang yang bisa mengeluarkan barang sekaligus menghapus jejaknya.
+Ada tiga role tetap. Pemisahan tugas Staff dan Admin sengaja dibuat supaya tidak ada satu orang yang bisa mengeluarkan barang sekaligus menghapus jejaknya. Owner sebagai pemilik usaha punya semua hak Admin dan Staff tanpa batasan, tapi tetap tidak bisa menghapus jejak karena log aktivitas tidak bisa diubah.
 
 | Role | Siapa | Konteks kerja | Kebutuhan utama | Batasan |
 | --- | --- | --- | --- | --- |
 | Staff | Operator lapangan di gudang | Scan masuk dan keluar di area bongkar muat di luar cold storage (ada jaringan). Memakai scanner fisik, HP, atau tablet | Scan cepat dengan umpan balik jelas (bunyi dan warna), tombol besar | Hanya scan Inbound dan Outbound. Tidak bisa edit atau hapus apa pun |
 | Admin | Kepala gudang atau staf administrasi | Di kantor gudang, PC atau laptop | Membuat order keluar, memperbaiki data, memantau stok, mengajukan adjustment | Tidak bisa mengurangi stok tanpa approval Owner. Setiap perubahan wajib alasan |
-| Owner | Pemilik usaha | Dari mana saja, sering lewat HP | Melihat kondisi stok dan kejanggalan sekilas, memutuskan adjustment | Tidak melakukan operasional gudang. Mengelola akun user dan produk ikan |
+| Owner | Pemilik usaha | Dari mana saja, sering lewat HP | Melihat kondisi stok dan kejanggalan sekilas, memutuskan adjustment, mengelola akun user | Tanpa batasan: bisa melakukan semua yang bisa dilakukan Admin dan Staff. Semua aksinya tetap tercatat di log |
 
 ## 4. Ruang Lingkup
 
@@ -84,11 +84,12 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 - Owner bisa membuat user, mengganti role, mereset password, dan menonaktifkan user.
 - User nonaktif tidak bisa login, tapi riwayatnya tetap tampil di log.
 - User tidak bisa dihapus.
+- Owner bisa membuka semua halaman dan melakukan semua aksi Admin dan Staff.
 - Setiap halaman dan aksi dicek berdasarkan role di server, bukan hanya disembunyikan di tampilan.
 
 ### 5.2 Master Data
 
-**Sebagai Admin**, saya ingin mengelola daftar produk ikan dan lokasi, supaya staf cukup memilih satu produk dari dropdown dan tidak ada salah ketik. **Sebagai Owner**, saya juga ingin bisa mengelola produk ikan, supaya daftar produk sesuai dengan yang saya jual.
+**Sebagai Admin**, saya ingin mengelola daftar produk ikan dan lokasi, supaya staf cukup memilih satu produk dari dropdown dan tidak ada salah ketik. **Sebagai Owner**, saya juga ingin bisa mengelola produk ikan dan lokasi, supaya daftar produk sesuai dengan yang saya jual.
 
 - Satu produk ikan adalah satu kombinasi jenis, grade, dan size. Contoh: MB A 3-5, MB A 6-10, dan MB B 6-10 adalah tiga produk berbeda.
 - Setiap produk punya kode, jenis ikan, grade (boleh kosong), size (boleh kosong), berat per dus dalam kg (default 10), dan masa simpan dalam hari (opsional).
@@ -103,8 +104,10 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 
 - Admin memasukkan jumlah stiker, sistem membuat kode berformat `DUS-YYMMDD-NNNN` yang unik.
 - Sistem menyediakan halaman cetak lembar stiker, dan batch yang sama bisa dicetak ulang.
-- Admin bisa menandai stiker rusak sebagai void.
+- Admin bisa menandai stiker rusak sebagai void dari halaman detail batch, satu atau beberapa sekaligus dengan satu alasan.
 - Stiker hanya bisa berstatus available, used, atau void.
+- Setiap batch punya halaman detail: daftar kode dan statusnya, bisa dicari per kode dan difilter per status. Untuk stiker used tampil dus tempat stiker itu tertempel (produk, lokasi, status dus, expired).
+- Dari halaman detail, Admin bisa mencentang stiker available (per stiker atau semua di halaman itu) lalu men-void semuanya dengan satu alasan, dan mencetak ulang satu stiker available atau used (misal stiker rusak atau terlewat dicetak). Stiker void tidak bisa dicetak.
 
 ### 5.4 Inbound (Barang Masuk)
 
@@ -126,9 +129,10 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 - Order berisi tujuan atau customer, tanggal, catatan, dan satu atau lebih item (produk ikan dan jumlah dus).
 - Untuk setiap item tampil stok tersedia, yaitu dus di gudang dikurangi sisa kebutuhan order lain yang masih terbuka.
 - Jumlah item melebihi stok tersedia ditolak.
-- Status order: draft, open, completed, closed, cancelled. Hanya order open yang muncul di layar staf.
+- Status order: draft, open, completed, cancelled. Hanya order open yang muncul di layar staf.
 - Saat semua item terpenuhi, order tetap open dengan tanda menunggu pengecekan. Admin mengecek fisik barang, lalu menyelesaikan order (completed).
-- Admin bisa menutup order sebelum terpenuhi dengan alasan wajib.
+- Admin bisa membatalkan order draft atau open. Membatalkan order open wajib alasan, dan semua dus yang sudah discan untuk order itu kembali ke gudang.
+- Jika pembeli hanya sanggup mengambil sebagian (misal 2 dari 5 dus), order dibatalkan lalu dibuat order baru sesuai kesanggupan pembeli.
 
 ### 5.6 Outbound (Barang Keluar) dengan FEFO
 
@@ -163,10 +167,11 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 
 **Sebagai Admin**, saya ingin memperbaiki salah input, dengan jejak yang jelas.
 
-- Admin bisa merevisi produk, tanggal produksi, dan tanggal expired dengan alasan wajib.
-- Admin bisa memindah lokasi per dus atau beberapa dus sekaligus lewat scan.
+- Setiap dus punya halaman detail: data dus, batch masuk, order keluar, dan riwayat lengkap dari log (siapa, kapan, nilai lama dan baru, alasan). Halaman ini dibuka dari kode dus di halaman Stok atau di detail batch stiker QR. Admin dan Owner bisa melihatnya.
+- Admin bisa merevisi produk, tanggal produksi, dan tanggal expired dengan alasan wajib, dari halaman detail dus. Revisi hanya untuk dus yang masih di gudang. Expired yang dikosongkan dihitung dari tanggal produksi dan masa simpan produk, sama seperti saat scan masuk.
+- Admin bisa memindah lokasi per dus dari halaman detail dus, atau banyak dus sekaligus lewat halaman Pindah Lokasi: pilih lokasi tujuan sekali, lalu scan dus satu per satu dengan scanner atau kamera HP.
 - Admin bisa membatalkan scan inbound selama batch masih berjalan. Dus dihapus secara soft delete dan stiker kembali available. Setelah batch ditutup, scan masuk tidak bisa dibatalkan; koreksi dilakukan lewat revisi data, pindah lokasi, atau adjustment.
-- Admin bisa membatalkan scan outbound selama order masih open. Dus kembali ke gudang.
+- Admin bisa membatalkan scan outbound yang salah selama order masih open, dengan alasan wajib, dari detail order maupun halaman Barang Keluar. Dus kembali ke gudang dan item order kembali membutuhkan satu dus. Riwayat scan tetap tersimpan dengan tanda dibatalkan. Staff tidak bisa membatalkan scan.
 - Setiap revisi dan pembatalan mencatat nilai lama, nilai baru, alasan, user, dan waktu.
 
 ### 5.10 Log Aktivitas
@@ -190,9 +195,12 @@ Setiap modul ditulis sebagai user story dengan kriteria penerimaan. Fitur diangg
 
 **Sebagai Staff**, saya ingin bisa scan dengan alat apa pun yang tersedia.
 
-- Input scan otomatis fokus dan kembali fokus setelah setiap scan.
+- Input scan otomatis fokus dan kembali fokus setelah setiap scan (saat kamera mati).
 - Scanner fisik bekerja tanpa klik apa pun: kode diketik scanner lalu Enter memproses scan.
-- Tombol scan kamera tersedia di HP dan tablet.
+- Di HP dan tablet, kamera belakang otomatis menyala saat halaman Barang Masuk atau Barang Keluar dibuka; cukup arahkan ke stiker QR. Di PC kamera bisa dinyalakan lewat tombol Kamera.
+- Satu dus yang masih di depan kamera hanya terbaca sekali (kode yang sama diabaikan selama 2 detik), dan kamera berhenti membaca selama scan diproses atau peringatan FEFO terbuka.
+- Setelah setiap scan kamera ada jeda 1,5 detik (tampil "Siap scan berikutnya…") supaya stiker dus sebelahnya tidak ikut terscan sebelum pekerja siap.
+- Kode tetap bisa diketik manual jika stiker rusak.
 - Sukses, peringatan, dan gagal punya warna dan bunyi berbeda.
 - Input dikunci sebentar saat memproses supaya satu dus tidak tercatat dua kali.
 
@@ -222,8 +230,8 @@ Sistem dibangun dengan Laravel, Inertia.js, React, dan Tailwind CSS, memakai MyS
 | Stiker QR | Kode `DUS-YYMMDD-NNNN`, batch cetak | available, used, void |
 | Batch Masuk | Supplier, nomor surat jalan, staf, waktu |  |
 | Dus | Kode QR, produk, lokasi, tanggal produksi, tanggal expired, siapa dan kapan masuk/keluar | in\_warehouse, outbound, pending\_adjustment, lost, damaged |
-| Order Keluar | Tujuan, tanggal, item (produk, jumlah) | draft, open, completed, closed, cancelled |
-| Scan Keluar | Dus, item order, staf, tanda pelanggaran FEFO dan alasannya |  |
+| Order Keluar | Tujuan, tanggal, item (produk, jumlah) | draft, open, completed, cancelled |
+| Scan Keluar | Dus, item order, staf, tanda pelanggaran FEFO dan alasannya, pembatalan (waktu, oleh siapa, alasan) |  |
 | Adjustment | Dus, hilang atau rusak, alasan, foto, pengaju, pemutus | pending, approved, rejected |
 | Log Aktivitas | User, aksi, objek, nilai lama dan baru, alasan, waktu | tidak bisa diubah |
 
@@ -237,10 +245,10 @@ Tahap 1 sampai 3 sudah cukup untuk uji coba di gudang. Tahap berikutnya ditambah
 
 1. **Fondasi:** login, role, kelola user, master data, log aktivitas. Selesai jika Owner bisa membuat akun dan Admin bisa mengisi master.
 2. **Stiker dan Inbound:** generate dan cetak QR, layar scan, inbound batch, pembatalan scan inbound oleh Admin, daftar stok. Selesai jika satu truk bisa diterima dan stok tampil benar.
-3. **Outbound:** order keluar, stok tersedia, scan keluar dengan FEFO. Selesai jika barang hanya bisa keluar lewat order. **Mulai uji coba di gudang.**
-4. **Koreksi dan Adjustment:** revisi data, pindah lokasi, pembatalan scan outbound, adjustment dengan approval Owner.
+3. **Outbound:** order keluar, stok tersedia, scan keluar dengan FEFO, pembatalan scan outbound yang salah. Selesai jika barang hanya bisa keluar lewat order. **Mulai uji coba di gudang.**
+4. **Koreksi dan Adjustment:** dibagi dua. 4a: detail dus dengan riwayat, revisi data, pindah lokasi (per dus dan massal lewat scan). 4b: adjustment dengan approval Owner.
 5. **Dashboard dan Laporan:** dashboard Owner, laporan stok per lokasi untuk pengecekan manual, laporan mutasi, peringatan expired, export Excel.
-6. **Kamera dan Penyempurnaan:** scan kamera, bunyi, uji di perangkat lapangan, perbaikan dari hasil uji coba.
+6. **Penyempurnaan:** uji di perangkat lapangan, perbaikan dari hasil uji coba. Scan kamera HP sudah dikerjakan lebih awal.
 
 ## 9. Asumsi, Risiko, dan Pertanyaan Terbuka
 
@@ -267,6 +275,11 @@ Tahap 1 sampai 3 sudah cukup untuk uji coba di gudang. Tahap berikutnya ditambah
 - [x] Berapa hari batas "mendekati expired" di dashboard? Default 30 hari.
 - [x] Ukuran kertas dan layout stiker QR yang akan dipakai? Usulan: label thermal tahan beku 50 x 30 mm, QR 25 x 25 mm dengan kode teks di bawahnya, bisa dicetak printer label thermal.
 - [x] Apakah target metrik di bagian 2 sudah sesuai?
+- [x] Apakah order yang hanya terpenuhi sebagian perlu status sendiri (ditutup)? Diputuskan: tidak. Status ditutup dihapus; order dibatalkan (dus kembali ke gudang) lalu dibuat order baru sesuai kesanggupan pembeli.
+- [x] Apakah pembatalan scan outbound perlu tersedia sejak uji coba? Diputuskan: ya, dipindah dari tahap 4 ke tahap 3, sama seperti pembatalan scan inbound.
+- [x] Apakah scan lewat kamera HP perlu tersedia sejak uji coba? Diputuskan: ya, dipindah dari tahap 6. Kamera otomatis menyala di HP, berjalan di Android dan iPhone.
+- [x] Apakah tahap 4 dikerjakan sekaligus? Diputuskan: dibagi. 4a (detail dus, revisi, pindah lokasi) lebih dulu, adjustment menyusul di 4b.
+- [x] Apakah Owner boleh ikut operasional gudang? Diputuskan: ya, Owner punya semua hak Admin dan Staff tanpa batasan.
 
 **Dari contoh rekap stok:**
 

@@ -23,22 +23,22 @@ Asumsi: satu gudang, berat per dus flat per produk (`kg_per_carton`, contoh data
 
 | Fitur | Staff | Admin | Owner |
 |---|:-:|:-:|:-:|
-| Scan Inbound (batch) | ✓ | ✓ | |
-| Scan Outbound (terhadap order) | ✓ | ✓ | |
-| Generate & cetak stiker QR | | ✓ | |
+| Scan Inbound (batch) | ✓ | ✓ | ✓ |
+| Scan Outbound (terhadap order) | ✓ | ✓ | ✓ |
+| Generate & cetak stiker QR | | ✓ | ✓ |
 | Kelola produk ikan | | ✓ | ✓ |
-| Kelola lokasi | | ✓ | |
-| Buat / tutup Order Keluar | | ✓ | |
-| Revisi data dus (produk, expired) | | ✓ | |
-| Pindah lokasi dus | | ✓ | |
-| Batalkan scan yang salah | | ✓ | |
-| Ajukan adjustment (hilang / rusak) | | ✓ | |
+| Kelola lokasi | | ✓ | ✓ |
+| Buat / batalkan Order Keluar | | ✓ | ✓ |
+| Revisi data dus (produk, expired) | | ✓ | ✓ |
+| Pindah lokasi dus | | ✓ | ✓ |
+| Batalkan scan yang salah | | ✓ | ✓ |
+| Ajukan adjustment (hilang / rusak) | | ✓ | ✓ |
 | Approve / reject adjustment | | | ✓ |
 | Dashboard & laporan | | lihat stok | ✓ penuh |
 | Log aktivitas | | ✓ | ✓ |
 | Kelola akun user | | | ✓ |
 
-Staff tidak punya hak edit atau hapus apa pun. Admin tidak bisa mengurangi stok sendiri tanpa approval Owner. Owner tidak melakukan operasional gudang, hanya memantau, memutuskan, serta mengelola user dan produk ikan.
+Staff tidak punya hak edit atau hapus apa pun. Admin tidak bisa mengurangi stok sendiri tanpa approval Owner. Owner tanpa batasan: punya semua hak Admin dan Staff, ditambah approve adjustment dan kelola user. Di server, Owner lolos semua pengecekan role.
 
 ---
 
@@ -59,8 +59,8 @@ Format kode: `DUS-YYMMDD-NNNN` (tanggal = tanggal generate, nomor urut per hari)
 ```
                  ┌──────────(scan keluar terhadap order)──────────► outbound
                  │                                                     │
-in_warehouse ────┤                                       (Admin batalkan scan keluar,
-     ▲           │                                        selama order masih open)
+in_warehouse ────┤                                       (Admin batalkan scan keluar atau
+     ▲           │                                        batalkan order, selama open)
      │           │                                                     │
      │           └──(Admin ajukan adjustment)──► pending_adjustment     │
      │                                               │                 │
@@ -74,7 +74,11 @@ Pembatalan scan inbound oleh Admin, hanya selama batch masih berjalan: dus dihap
 
 ### 3.3 Order Keluar (`outbound_orders.status`)
 
-`draft` → `open` → `completed` (semua item terpenuhi dan sudah dicek fisik oleh Admin) atau `closed` (ditutup Admin sebelum terpenuhi, wajib alasan). `draft` juga bisa `cancelled`.
+`draft` → `open` → `completed` (semua item terpenuhi dan sudah dicek fisik oleh Admin). `draft` dan `open` bisa `cancelled`:
+- Dari `draft`: alasan opsional.
+- Dari `open`: wajib alasan. Semua dus yang sudah discan untuk order itu kembali `in_warehouse` dan stok yang dipesan dilepas. Riwayat scan tetap tersimpan.
+
+Tidak ada status "ditutup". Jika pembeli hanya sanggup mengambil sebagian, order dibatalkan lalu dibuat order baru sesuai kesanggupan pembeli. Order `completed` tidak bisa dibatalkan.
 
 ### 3.4 Adjustment (`adjustments.status`)
 
@@ -89,6 +93,9 @@ Pembatalan scan inbound oleh Admin, hanya selama batch masih berjalan: dus dihap
 1. Admin memasukkan jumlah stiker (misal 500).
 2. Sistem membuat 500 baris `qr_labels` berstatus `available` dalam satu `print_batch`.
 3. Sistem menampilkan halaman cetak (layout lembar stiker, bisa dicetak ulang per batch).
+4. Halaman **detail batch** menampilkan setiap kode dengan statusnya (cari per kode, filter per status, 50 per halaman). Stiker `used` menampilkan dus-nya (produk, lokasi, status, expired) dengan link ke halaman Stok.
+5. Void hanya dari detail batch: Admin mencentang stiker `available` (per stiker atau semua di halaman, maks. 50 sekali), lalu mengisi satu alasan untuk semuanya. Prosesnya atomic: jika ada stiker yang sudah tidak `available`, tidak ada yang di-void. Log `qr.voided` tetap dicatat per stiker.
+6. Dari detail batch, Admin bisa mencetak ulang satu stiker `available` atau `used` dengan kode yang sama. Stiker `void` tidak bisa dicetak (server menolak).
 
 ### 4.2 Inbound, Mode Batch (Staff)
 
@@ -121,7 +128,8 @@ Pembatalan scan inbound oleh Admin, hanya selama batch masih berjalan: dus dihap
    - Produk dus harus cocok dengan salah satu item order yang belum terpenuhi. Jika tidak, ditolak.
    - **Cek FEFO:** jika masih ada dus cocok lain yang belum discan dengan `expired_date` lebih awal dari dus ini, muncul peringatan. Staf boleh lanjut dengan wajib mengisi alasan. Scan ditandai `fefo_violation`.
 4. Scan sukses: dus menjadi `outbound`, `scanned_out_by` dan `scanned_out_at` terisi, `outbound_order_id` terisi, log tercatat.
-5. Jika semua item terpenuhi, order tetap `open` dengan tanda "menunggu pengecekan" dan tidak menerima scan lagi. Admin mengecek fisik barang, lalu menekan **Selesaikan order** sehingga order menjadi `completed`. Selama masih `open`, scan yang salah masih bisa dibatalkan Admin (tahap 4).
+5. Jika semua item terpenuhi, order tetap `open` dengan tanda "menunggu pengecekan" dan tidak menerima scan lagi. Admin mengecek fisik barang, lalu menekan **Selesaikan order** sehingga order menjadi `completed`. Selama masih `open`, scan yang salah masih bisa dibatalkan Admin (lihat 4.7).
+6. Jika pembeli hanya sanggup mengambil sebagian, Admin menekan **Batalkan order** dengan alasan: dus yang sudah discan kembali `in_warehouse` (tercatat `box.outbound_cancelled` per dus, dan semua scan-nya ditandai dibatalkan), lalu Admin membuat order baru sesuai jumlah yang sanggup diambil.
 
 Dus dikunci dengan transaksi database (`SELECT ... FOR UPDATE`) supaya dua staf tidak bisa scan dus yang sama bersamaan.
 
@@ -139,13 +147,15 @@ Dus dikunci dengan transaksi database (`SELECT ... FOR UPDATE`) supaya dua staf 
 3. Owner melihat daftar pengajuan dan menekan **Approve** atau **Reject** (catatan opsional).
    - Approve: dus menjadi `lost` atau `damaged`.
    - Reject: dus kembali `in_warehouse`.
+4. Owner juga boleh mengajukan adjustment sendiri lalu memutuskannya. Pengajuan dan keputusan tetap tercatat terpisah di log.
 
 ### 4.7 Revisi Data dan Koreksi (Admin)
 
-- **Revisi data dus** (produk, tanggal produksi/expired): wajib alasan. Nilai lama dan baru tercatat di log dan muncul di feed aktivitas Owner. Tidak perlu approval.
-- **Pindah lokasi**: per dus atau massal (scan beberapa dus lalu pilih lokasi tujuan). Tercatat di log.
+- **Detail dus** (`/boxes/{id}`): data dus, batch masuk, order keluar, dan riwayat dari `activity_logs` berdasarkan `box_id`. ID produk/lokasi di nilai lama/baru ditampilkan sebagai nama. Dibuka dari kode dus di Stok dan di detail batch QR.
+- **Revisi data dus** (produk, tanggal produksi/expired): dari detail dus, wajib alasan, hanya untuk dus `in_warehouse` atau `pending_adjustment`. Expired kosong dihitung dari tanggal produksi + `shelf_life_days` (logika yang sama dengan inbound, `Product::expiryFrom()`). Hanya kolom yang berubah yang dicatat (`box.updated`, nilai lama dan baru); revisi tanpa perubahan ditolak. Tidak perlu approval.
+- **Pindah lokasi**: per dus dari detail dus, atau massal di halaman **Pindah Lokasi** (`/box-moves`): pilih lokasi tujuan sekali, lalu setiap dus yang discan (scanner atau kamera) langsung dipindah. Hanya dus `in_warehouse`/`pending_adjustment`, lokasi tujuan harus aktif dan berbeda dari lokasi sekarang. Tercatat `box.location_changed`, alasan tidak wajib.
 - **Batalkan scan inbound**: hanya selama batch masih berjalan, wajib alasan, lihat bagian 3.2. Setelah batch ditutup, koreksi lewat revisi data, pindah lokasi, atau adjustment.
-- **Batalkan scan outbound**: hanya selama order masih `open`. Dus kembali `in_warehouse`, wajib alasan.
+- **Batalkan scan outbound**: hanya selama order masih `open`, wajib alasan. Tombol **Batalkan** ada di riwayat scan pada detail order dan di daftar scan terakhir halaman Barang Keluar (hanya untuk Admin dan Owner). Dus kembali `in_warehouse` dan `quantity_scanned` item berkurang satu, sehingga dus itu (atau dus lain) bisa discan lagi. Baris `outbound_scans` tidak dihapus, hanya diisi `cancelled_at`, `cancelled_by`, `cancel_reason`. Tercatat di log sebagai `box.outbound_cancelled`.
 
 ---
 
@@ -242,8 +252,8 @@ Kode QR unik di level database hanya di antara dus yang tidak dibatalkan. Dus ya
 | destination | string | customer / tujuan |
 | order_date | date | |
 | notes | text, nullable | |
-| status | enum: `draft`, `open`, `completed`, `closed`, `cancelled` | |
-| close_reason | text, nullable | |
+| status | enum: `draft`, `open`, `completed`, `cancelled` | |
+| cancel_reason | text, nullable | wajib jika dibatalkan dari `open` |
 | created_by | FK users | |
 
 **`outbound_order_items`**
@@ -262,7 +272,7 @@ Kode QR unik di level database hanya di antara dus yang tidak dibatalkan. Dus ya
 | scanned_by | FK users | |
 | fefo_violation | boolean | |
 | fefo_reason | text, nullable | |
-| cancelled_at / cancelled_by / cancel_reason | nullable | pembatalan oleh Admin (ditambahkan di tahap 4) |
+| cancelled_at / cancelled_by / cancel_reason | nullable | pembatalan scan oleh Admin, atau otomatis saat order dibatalkan |
 
 ### 5.7 Adjustment
 
@@ -295,7 +305,7 @@ Aturan: satu dus hanya boleh punya satu adjustment `pending`.
 | ip_address / user_agent | string, nullable | |
 | created_at | timestamp | |
 
-Action: `box.scanned_in`, `box.scanned_out`, `box.updated`, `box.location_changed`, `box.inbound_cancelled`, `box.outbound_cancelled`, `box.fefo_override`, `qr.generated`, `qr.voided`, `order.created`, `order.updated`, `order.opened`, `order.cancelled`, `order.closed`, `order.completed`, `adjustment.requested`, `adjustment.approved`, `adjustment.rejected`, `inbound.started`, `inbound.finished`, `inbound.cancelled`, `product.created`, `product.updated`, `location.created`, `location.updated`, `user.created`, `user.updated`, `user.login`, `user.logout`.
+Action: `box.scanned_in`, `box.scanned_out`, `box.updated`, `box.location_changed`, `box.inbound_cancelled`, `box.outbound_cancelled`, `box.fefo_override`, `qr.generated`, `qr.voided`, `order.created`, `order.updated`, `order.opened`, `order.cancelled`, `order.completed`, `adjustment.requested`, `adjustment.approved`, `adjustment.rejected`, `inbound.started`, `inbound.finished`, `inbound.cancelled`, `product.created`, `product.updated`, `location.created`, `location.updated`, `user.created`, `user.updated`, `user.login`, `user.logout`.
 
 Cara menjaga log tidak bisa diubah:
 - Tidak ada route atau UI untuk edit/hapus log.
@@ -325,11 +335,12 @@ users ─┬─< inbound_batches ─< boxes >─ qr_labels >─ qr_print_batches
 
 ### Admin
 - Dashboard stok (ringkas)
-- Stok: daftar dus dengan filter (produk, jenis, grade, size, lokasi, status, rentang expired) dan detail dus berisi riwayat lengkap dari log
+- Stok: daftar dus dengan filter (produk, jenis, grade, size, lokasi, status, rentang expired) dan detail dus berisi riwayat lengkap dari log, dengan tombol Revisi data dan Pindah lokasi
+- Pindah Lokasi: pilih lokasi tujuan lalu scan dus (massal)
 - Order Keluar: daftar, buat, detail
 - Laporan stok per lokasi untuk pengecekan manual
 - Adjustment: daftar pengajuan dan form pengajuan
-- Stiker QR: generate dan cetak ulang
+- Stiker QR: generate, detail batch (kode, status, dus untuk stiker used), void massal dengan centang, cetak ulang per batch atau per stiker
 - Master Data: produk ikan, lokasi
 - Log Aktivitas
 - Semua halaman scan Staff
@@ -344,17 +355,19 @@ users ─┬─< inbound_batches ─< boxes >─ qr_labels >─ qr_print_batches
   - Ringkasan masuk/keluar per hari atau minggu
 - Log Aktivitas (filter per user, aksi, dus, tanggal)
 - Master Data: produk ikan
+- Detail dus dengan riwayat (dan semua aksi Admin, karena Owner punya semua hak Admin)
 - Laporan dengan export Excel: stok per tanggal, mutasi masuk/keluar, adjustment, stok per lokasi
 - Kelola User
+- Semua halaman Admin dan Staff
 
 ---
 
 ## 7. Komponen Scan
 
 Satu komponen React `ScanInput` dipakai di semua halaman scan:
-- Input teks auto-focus dan otomatis kembali fokus setelah setiap scan atau saat area lain disentuh.
+- Input teks auto-focus dan otomatis kembali fokus setelah setiap scan atau saat area lain disentuh, selama kamera mati.
 - Scanner fisik bekerja sebagai keyboard: mengetik kode lalu `Enter` memicu submit.
-- Tombol **Scan dengan Kamera** membuka kamera perangkat (memerlukan HTTPS).
+- **Kamera** (komponen `CameraScanner`, memerlukan HTTPS): di HP/tablet (`pointer: coarse`) kamera belakang otomatis menyala; di PC lewat tombol **Kamera**. QR dibaca tiap ~250 ms dengan `BarcodeDetector` bawaan browser (Chrome Android), atau polyfill `barcode-detector` (zxing-wasm) yang hanya dimuat di browser tanpa pembaca bawaan (iPhone, Chrome Windows). Kode yang sama diabaikan selama 2 detik. Kamera berhenti membaca selama input dikunci (request berjalan, peringatan FEFO, order lengkap), ditambah jeda 1,5 detik setelahnya (`SCAN_COOLDOWN_MS`). Pembacaan QR berjalan di perangkat; server hanya menerima satu request per dus, sama seperti scanner fisik. Saat kamera menyala, input teks tidak di-auto-focus supaya keyboard HP tidak muncul, tapi tetap bisa diketik manual.
 - Umpan balik langsung: bunyi dan warna berbeda untuk sukses, peringatan (FEFO), dan gagal, karena staf di lapangan sering tidak melihat layar.
 - Input dinonaktifkan sebentar saat request berjalan untuk mencegah scan ganda.
 
@@ -370,6 +383,8 @@ Satu komponen React `ScanInput` dipakai di semua halaman scan:
 6. Setiap perubahan oleh Admin wajib alasan dan tercatat beserta nilai lama/baru.
 7. Data master dan user tidak dihapus, hanya dinonaktifkan.
 8. Semua operasi scan berjalan dalam transaksi database dengan row lock.
+9. Order dibatalkan, bukan ditutup sebagian: membatalkan order `open` wajib alasan dan mengembalikan semua dus yang sudah discan ke gudang. Order `completed` tidak bisa dibatalkan.
+10. Revisi data dan pindah lokasi hanya untuk dus yang masih di gudang (`in_warehouse` atau `pending_adjustment`).
 
 ---
 
@@ -378,8 +393,8 @@ Satu komponen React `ScanInput` dipakai di semua halaman scan:
 - **Backend**: Laravel versi terbaru, Inertia.js, otorisasi dengan Gate/Policy berdasarkan kolom `role` (tiga role tetap, tidak perlu package permission).
 - **Frontend**: React + Tailwind, layout mobile-first untuk halaman scan, layout tabel untuk halaman Admin/Owner.
 - **Database**: MySQL atau PostgreSQL.
-- **Library yang disarankan**: generator QR di PHP (misal `chillerlan/php-qrcode`), scan kamera di browser (misal `html5-qrcode` atau `@zxing/browser`), export Excel (misal `maatwebsite/excel`).
-- **Hosting**: wajib HTTPS (untuk kamera dan PWA offline). Pastikan WiFi atau sinyal memadai di area bongkar muat.
+- **Library yang disarankan**: generator QR di PHP (misal `chillerlan/php-qrcode`), scan kamera di browser (`BarcodeDetector` bawaan, dengan polyfill `barcode-detector`), export Excel (misal `maatwebsite/excel`).
+- **Hosting**: wajib HTTPS (untuk kamera dan PWA offline). Laravel mempercayai header proxy (`trustProxies`) supaya URL tetap `https` di belakang reverse proxy atau tunnel. Pastikan WiFi atau sinyal memadai di area bongkar muat.
 - **Offline**: hanya daftar ambil FEFO yang tersimpan di perangkat (atau dicetak) untuk dipakai di dalam cold storage.
 - **Testing**: feature test untuk setiap aturan bisnis di bagian 8, terutama validasi scan, FEFO, dan alur adjustment.
 
@@ -391,10 +406,10 @@ Satu komponen React `ScanInput` dipakai di semua halaman scan:
 |---|---|---|
 | 1. Fondasi | Setup project, login, role, kelola user, master data, `activity_logs` | Owner bisa membuat akun, Admin mengisi master |
 | 2. Stiker & Inbound | Generate/cetak QR, komponen `ScanInput`, inbound batch, pembatalan scan inbound oleh Admin, daftar stok | Barang masuk bisa dicatat |
-| 3. Outbound | Order Keluar, stok tersedia, scan keluar dengan FEFO | Barang keluar terkontrol |
-| 4. Koreksi & Adjustment | Revisi data, pindah lokasi, pembatalan scan outbound, adjustment dan approval | Admin dan Owner bisa mengoreksi dengan jejak |
+| 3. Outbound | Order Keluar, stok tersedia, scan keluar dengan FEFO, pembatalan scan outbound | Barang keluar terkontrol |
+| 4. Koreksi & Adjustment | 4a: detail dus dengan riwayat, revisi data, pindah lokasi (per dus dan massal lewat scan). 4b: adjustment dan approval | Admin dan Owner bisa mengoreksi dengan jejak |
 | 5. Dashboard & Laporan | Dashboard Owner, laporan stok per lokasi dan mutasi, export Excel, peringatan expired | Owner bisa memantau penuh |
-| 6. Kamera & Polishing | Scan kamera, bunyi, uji di perangkat lapangan | Siap dipakai operasional |
+| 6. Polishing | Uji di perangkat lapangan, perbaikan dari uji coba (scan kamera HP sudah dikerjakan lebih awal) | Siap dipakai operasional |
 
 Tahap 1–3 sudah cukup untuk mulai uji coba di gudang.
 

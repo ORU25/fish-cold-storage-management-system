@@ -1,4 +1,4 @@
-import { CancelInboundButton } from '@/components/cancel-inbound-button';
+import { CancelScanButton } from '@/components/cancel-scan-button';
 import InputError from '@/components/input-error';
 import { ScanInput, type ScanFeedback } from '@/components/scan-input';
 import { Button } from '@/components/ui/button';
@@ -205,7 +205,13 @@ export default function InboundShow({ batch, boxCount, recentBoxes, summary, pro
                                         {box.product.display_name} · {box.location?.name ?? '-'}
                                     </span>
                                     <span className="text-muted-foreground whitespace-nowrap">Exp {formatDate(box.expired_date)}</span>
-                                    {!isFinished && box.status === 'in_warehouse' && <CancelInboundButton box={box} />}
+                                    {!isFinished && box.status === 'in_warehouse' && (
+                                        <CancelScanButton
+                                            url={route('boxes.cancel-inbound', box.id)}
+                                            title={`Batalkan scan masuk ${box.qr_code}?`}
+                                            description="Dus dikeluarkan dari stok dan stikernya kembali bisa discan, misalnya ke batch yang benar. Pembatalan tercatat di log."
+                                        />
+                                    )}
                                 </li>
                             ))}
                         </ul>

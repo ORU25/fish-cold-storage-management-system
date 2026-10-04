@@ -1,12 +1,15 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\BoxController;
+use App\Http\Controllers\BoxMoveController;
 use App\Http\Controllers\InboundBatchController;
 use App\Http\Controllers\InboundCancellationController;
 use App\Http\Controllers\InboundScanController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\OutboundController;
 use App\Http\Controllers\OutboundOrderController;
+use App\Http\Controllers\OutboundScanCancellationController;
 use App\Http\Controllers\OutboundScanController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\QrLabelController;
@@ -34,14 +37,20 @@ Route::middleware(['auth'])->group(function () {
         Route::get('qr-labels', [QrLabelController::class, 'index'])->name('qr-labels.index');
         Route::post('qr-labels', [QrLabelController::class, 'store'])->name('qr-labels.store');
         Route::post('qr-labels/void', [QrLabelController::class, 'void'])->name('qr-labels.void');
+        Route::get('qr-labels/batches/{batch}', [QrLabelController::class, 'show'])->name('qr-labels.show');
         Route::get('qr-labels/batches/{batch}/print', [QrLabelController::class, 'print'])->name('qr-labels.print');
+        Route::get('qr-labels/{label}/print', [QrLabelController::class, 'printLabel'])->name('qr-labels.print-label');
         Route::post('boxes/{box}/cancel-inbound', [InboundCancellationController::class, 'store'])->name('boxes.cancel-inbound');
+        Route::put('boxes/{box}', [BoxController::class, 'update'])->name('boxes.update');
+        Route::post('boxes/{box}/move', [BoxController::class, 'move'])->name('boxes.move');
+        Route::get('box-moves', [BoxMoveController::class, 'index'])->name('box-moves.index');
+        Route::post('box-moves', [BoxMoveController::class, 'store'])->name('box-moves.store');
 
         Route::resource('orders', OutboundOrderController::class)->except(['destroy']);
         Route::post('orders/{order}/open', [OutboundOrderController::class, 'open'])->name('orders.open');
         Route::post('orders/{order}/cancel', [OutboundOrderController::class, 'cancel'])->name('orders.cancel');
         Route::post('orders/{order}/complete', [OutboundOrderController::class, 'complete'])->name('orders.complete');
-        Route::post('orders/{order}/close', [OutboundOrderController::class, 'close'])->name('orders.close');
+        Route::post('outbound-scans/{scan}/cancel', [OutboundScanCancellationController::class, 'store'])->name('outbound-scans.cancel');
     });
 
     Route::middleware('role:staff,admin')->group(function () {
@@ -59,6 +68,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('stock', [StockController::class, 'index'])
         ->middleware('role:owner,admin')
         ->name('stock.index');
+
+    Route::get('boxes/{box}', [BoxController::class, 'show'])
+        ->middleware('role:owner,admin')
+        ->name('boxes.show');
 
     Route::middleware('role:owner')->group(function () {
         Route::resource('users', UserController::class)->only(['index', 'store', 'update']);

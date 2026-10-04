@@ -171,13 +171,12 @@ test('finishing a batch shows the summary and stops further scans', function () 
     $this->actingAs($staff)->post(route('inbound.scans.store', $batch), scanPayload($label->code))->assertSessionHasErrors('code');
 });
 
-test('owner can not do inbound', function () {
+test('owner can do inbound too', function () {
     $owner = User::factory()->owner()->create();
     $batch = InboundBatch::factory()->create();
 
-    $this->actingAs($owner)->get('/inbound')->assertForbidden();
-    $this->actingAs($owner)->post('/inbound', ['supplier_name' => 'X'])->assertForbidden();
-    $this->actingAs($owner)->post(route('inbound.scans.store', $batch), [])->assertForbidden();
+    $this->actingAs($owner)->get('/inbound')->assertOk();
+    $this->actingAs($owner)->post(route('inbound.scans.store', $batch), [])->assertSessionHasErrors('code');
 });
 
 test('an empty batch can not be finished but can be cancelled, leaving a trace in the log', function () {

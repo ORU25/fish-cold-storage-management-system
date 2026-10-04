@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem, type Paginated } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 
 interface PrintBatch {
@@ -26,16 +26,10 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Stiker QR', href: '/qr-labels' 
 
 export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBatch> }) {
     const generateForm = useForm({ quantity: '100' });
-    const voidForm = useForm({ code: '', reason: '' });
 
     const generate: FormEventHandler = (e) => {
         e.preventDefault();
         generateForm.post(route('qr-labels.store'));
-    };
-
-    const voidLabel: FormEventHandler = (e) => {
-        e.preventDefault();
-        voidForm.post(route('qr-labels.void'), { preserveScroll: true, onSuccess: () => voidForm.reset() });
     };
 
     return (
@@ -44,7 +38,7 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
             <div className="grid gap-6 p-4">
                 <Heading title="Stiker QR" description="Hanya stiker dari sistem yang bisa dipakai, dan setiap stiker hanya sekali." />
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid max-w-md gap-4">
                     <form onSubmit={generate} className="grid content-start gap-3 rounded-lg border p-4">
                         <h2 className="font-semibold">Buat stiker baru</h2>
                         <div className="grid gap-2">
@@ -63,31 +57,6 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
                         <Button type="submit" disabled={generateForm.processing}>
                             Buat dan cetak
                         </Button>
-                    </form>
-
-                    <form onSubmit={voidLabel} className="grid content-start gap-3 rounded-lg border p-4">
-                        <h2 className="font-semibold">Void stiker rusak</h2>
-                        <div className="grid gap-2">
-                            <Label htmlFor="code">Kode stiker</Label>
-                            <Input
-                                id="code"
-                                placeholder="DUS-261003-0001"
-                                className="font-mono uppercase"
-                                value={voidForm.data.code}
-                                onChange={(e) => voidForm.setData('code', e.target.value)}
-                                required
-                            />
-                            <InputError message={voidForm.errors.code} />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="reason">Alasan</Label>
-                            <Input id="reason" value={voidForm.data.reason} onChange={(e) => voidForm.setData('reason', e.target.value)} required />
-                            <InputError message={voidForm.errors.reason} />
-                        </div>
-                        <Button type="submit" variant="destructive" disabled={voidForm.processing}>
-                            Void
-                        </Button>
-                        {voidForm.recentlySuccessful && <p className="text-sm text-green-700">Stiker sudah di-void.</p>}
                     </form>
                 </div>
 
@@ -124,10 +93,15 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
                                     <td className="p-3 text-right tabular-nums">{batch.available_count}</td>
                                     <td className="p-3 text-right tabular-nums">{batch.used_count}</td>
                                     <td className="p-3 text-right tabular-nums">{batch.void_count}</td>
-                                    <td className="p-3 text-right">
-                                        <Button variant="outline" size="sm" asChild>
-                                            <a href={route('qr-labels.print', batch.id)}>Cetak ulang</a>
-                                        </Button>
+                                    <td className="p-3">
+                                        <div className="flex justify-end gap-2">
+                                            <Button variant="outline" size="sm" asChild>
+                                                <Link href={route('qr-labels.show', batch.id)}>Detail</Link>
+                                            </Button>
+                                            <Button variant="outline" size="sm" asChild>
+                                                <a href={route('qr-labels.print', batch.id)}>Cetak ulang</a>
+                                            </Button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

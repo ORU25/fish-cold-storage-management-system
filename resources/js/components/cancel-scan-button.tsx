@@ -7,19 +7,19 @@ import { type SharedData } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useState } from 'react';
 
-/** Admin-only undo of a wrong inbound scan (PRD 5.9). Renders nothing for other roles. */
-export function CancelInboundButton({ box }: { box: { id: string; qr_code: string } }) {
+/** Admin and Owner undo of a wrong inbound or outbound scan (PRD 5.9). Renders nothing for Staff. */
+export function CancelScanButton({ url, title, description }: { url: string; title: string; description: string }) {
     const { auth } = usePage<SharedData>().props;
     const [open, setOpen] = useState(false);
     const form = useForm({ reason: '' });
 
-    if (auth.user.role !== 'admin') {
+    if (auth.user.role === 'staff') {
         return null;
     }
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
-        form.post(route('boxes.cancel-inbound', box.id), {
+        form.post(url, {
             preserveScroll: true,
             onSuccess: () => {
                 setOpen(false);
@@ -36,19 +36,17 @@ export function CancelInboundButton({ box }: { box: { id: string; qr_code: strin
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Batalkan scan masuk {box.qr_code}?</DialogTitle>
-                        <DialogDescription>
-                            Dus dikeluarkan dari stok dan stikernya kembali bisa discan, misalnya ke batch yang benar. Pembatalan tercatat di log.
-                        </DialogDescription>
+                        <DialogTitle>{title}</DialogTitle>
+                        <DialogDescription>{description}</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submit} className="grid gap-4">
                         <div className="grid gap-2">
-                            <Label htmlFor={`reason-${box.id}`}>Alasan</Label>
+                            <Label htmlFor="cancel-scan-reason">Alasan</Label>
                             <Input
-                                id={`reason-${box.id}`}
+                                id="cancel-scan-reason"
                                 value={form.data.reason}
                                 onChange={(e) => form.setData('reason', e.target.value)}
-                                placeholder="Contoh: salah masuk batch"
+                                placeholder="Contoh: salah scan dus"
                                 required
                             />
                             <InputError message={form.errors.reason} />

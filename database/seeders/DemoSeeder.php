@@ -2,11 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AdjustmentStatus;
+use App\Enums\AdjustmentType;
 use App\Enums\BoxStatus;
 use App\Enums\OrderStatus;
 use App\Enums\QrLabelStatus;
 use App\Enums\Role;
 use App\Models\ActivityLog;
+use App\Models\Adjustment;
 use App\Models\Box;
 use App\Models\InboundBatch;
 use App\Models\Location;
@@ -155,6 +158,13 @@ class DemoSeeder extends Seeder
         $this->at(10);
         $this->stickers($admin, 40);
 
+        $this->at(8, 10);
+        $this->as($admin);
+        $damaged = $this->requestAdjustment($this->boxesOf('Layang')->first(), AdjustmentType::Damaged, 'Dus sobek dan ikan mencair, ditemukan saat hitung fisik.');
+        $this->at(8, 16);
+        $this->as($owner);
+        $this->decideAdjustment($damaged, AdjustmentStatus::Approved, 'Sudah dicek langsung, dibuang.');
+
         $this->at(5);
         $this->inbound($andi, 'PT Samudra Jaya', 'SJ-1102', [
             ['MB A 6-10', 'Blok B', 240, 8],
@@ -172,11 +182,32 @@ class DemoSeeder extends Seeder
         $this->as($admin);
         $this->cancelScanOut($wrongScan, 'Salah scan, dus ini disiapkan untuk order lain.');
 
+        $this->at(2, 11);
+        $this->as($admin);
+        $this->requestAdjustment($this->boxesOf('MB PP 15-20')->first(), AdjustmentType::Lost, 'Tidak ditemukan di Freezer Depan saat hitung fisik.');
+
         $this->at(0, 8);
         $this->order($admin, 'Hotel Pantai Indah', ['Tongkol 3-5' => 4, 'MB PP 15-20' => 2]);
         $batch = $this->inbound($budi, 'UD Nelayan Sejahtera', 'SJ-0087', [['Layang', 'Blok B', 170, 3]], finished: false);
         $this->as($admin);
         $this->cancelScanIn($batch->boxes()->latest('qr_code')->first(), 'Dus milik supplier lain, ikut terbawa di truk.');
+    }
+
+    private function requestAdjustment(Box $box, AdjustmentType $type, string $reason): Adjustment
+    {
+        $adjustment = Adjustment::create(['box_id' => $box->id, 'type' => $type, 'reason' => $reason, 'status' => AdjustmentStatus::Pending, 'requested_by' => Auth::id()]);
+        $box->update(['status' => BoxStatus::PendingAdjustment]);
+        ActivityLog::record('adjustment.requested', $box, ['status' => BoxStatus::InWarehouse->value], ['status' => BoxStatus::PendingAdjustment->value, 'type' => $type->value], $reason);
+
+        return $adjustment;
+    }
+
+    private function decideAdjustment(Adjustment $adjustment, AdjustmentStatus $decision, ?string $note = null): void
+    {
+        $boxStatus = $decision === AdjustmentStatus::Approved ? $adjustment->type->boxStatus() : BoxStatus::InWarehouse;
+        $adjustment->update(['status' => $decision, 'decided_by' => Auth::id(), 'decided_at' => now(), 'decision_note' => $note]);
+        $adjustment->box->update(['status' => $boxStatus]);
+        ActivityLog::record("adjustment.{$decision->value}", $adjustment->box, ['status' => BoxStatus::PendingAdjustment->value], ['status' => $boxStatus->value, 'type' => $adjustment->type->value], $note);
     }
 
     /**

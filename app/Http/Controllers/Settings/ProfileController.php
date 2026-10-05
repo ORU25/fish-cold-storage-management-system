@@ -25,6 +25,6 @@ class ProfileController extends Controller
     {
         $request->user()->update($request->validated());
 
-        return to_route('profile.edit');
+        return to_route('profile.edit')->with('success', 'Profil diperbarui.');
     }
 }

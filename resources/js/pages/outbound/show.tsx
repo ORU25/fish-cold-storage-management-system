@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { ORDER_STATUS_LABELS } from '@/lib/labels';
-import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { cn, formatDate } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
-import { Printer } from 'lucide-react';
+import { PackageMinus, X } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface Order {
@@ -92,157 +92,151 @@ export default function OutboundShow({ order, pickList, recentScans }: { order: 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Keluar: ${order.destination}`} />
-            <div className="mx-auto grid w-full max-w-3xl gap-6 p-4">
-                <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <h1 className="text-xl font-semibold">{order.destination}</h1>
-                        <p className="text-muted-foreground text-sm">
-                            <span className="font-mono">{order.order_number}</span> · {formatDate(order.order_date)}
-                            {!isOpen && ` · ${ORDER_STATUS_LABELS[order.status]}`}
-                        </p>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-4xl font-bold tabular-nums">
-                            {scanned}/{requested}
+            <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 p-4 lg:max-w-6xl lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start">
+                <div className="grid grid-cols-1 gap-6 lg:sticky lg:top-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-xl font-semibold">{order.destination}</h1>
+                            <p className="text-muted-foreground text-sm">
+                                <span className="font-mono">{order.order_number}</span> · {formatDate(order.order_date)}
+                                {!isOpen && ` · ${ORDER_STATUS_LABELS[order.status]}`}
+                            </p>
                         </div>
-                        <div className="text-muted-foreground text-sm">dus keluar</div>
+                        <div className="text-right">
+                            <div className="text-4xl font-bold tabular-nums">
+                                {scanned}/{requested}
+                            </div>
+                            <div className="text-muted-foreground text-sm">dus keluar</div>
+                        </div>
                     </div>
+
+                    <ul className="grid gap-2">
+                        {order.items.map((item) => {
+                            const done = item.quantity_scanned >= item.quantity_requested;
+                            return (
+                                <li
+                                    key={item.id}
+                                    className={cn('flex items-center justify-between rounded-lg border p-3', done && 'border-green-600 bg-green-50')}
+                                >
+                                    <span className="font-medium">{item.product.display_name}</span>
+                                    <span className="tabular-nums">
+                                        {item.quantity_scanned}/{item.quantity_requested} {done && '✓'}
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+
+                    {isOpen ? (
+                        <>
+                            {isFullyScanned && (
+                                <div className="rounded-xl border-2 border-green-600 bg-green-50 p-4 font-semibold text-green-800">
+                                    Semua item lengkap. Menunggu pengecekan dan penyelesaian oleh Admin.
+                                </div>
+                            )}
+                            <ScanInput
+                                onScan={(code) => send(code)}
+                                processing={processing || fefo !== null}
+                                feedback={feedback}
+                                lockedMessage={isFullyScanned ? 'Order lengkap' : undefined}
+                            />
+
+                            {fefo && (
+                                <form onSubmit={confirmFefo} className="grid gap-3 rounded-xl border-2 border-amber-500 p-4">
+                                    <Label htmlFor="fefo_reason">Alasan mengeluarkan {fefo.code.toUpperCase()} di luar urutan FEFO</Label>
+                                    <Input
+                                        id="fefo_reason"
+                                        className="h-12 text-base"
+                                        value={fefo.reason}
+                                        onChange={(e) => setFefo({ ...fefo, reason: e.target.value })}
+                                        placeholder="Contoh: dus expired terdekat tertumpuk di bawah"
+                                        autoFocus
+                                        required
+                                    />
+                                    <InputError message={fefo.error} />
+                                    <div className="flex gap-2">
+                                        <Button type="submit" size="lg" disabled={processing || !fefo.reason.trim()}>
+                                            <PackageMinus /> Tetap keluarkan
+                                        </Button>
+                                        <Button type="button" size="lg" variant="outline" onClick={() => setFefo(null)}>
+                                            <X /> Batal
+                                        </Button>
+                                    </div>
+                                </form>
+                            )}
+                        </>
+                    ) : (
+                        <div className="rounded-lg border p-4">
+                            Order ini sudah {ORDER_STATUS_LABELS[order.status].toLowerCase()}.{' '}
+                            <Link href={route('outbound.index')} className="underline">
+                                Kembali ke daftar order
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
-                <ul className="grid gap-2">
-                    {order.items.map((item) => {
-                        const done = item.quantity_scanned >= item.quantity_requested;
-                        return (
-                            <li
-                                key={item.id}
-                                className={cn(
-                                    'flex items-center justify-between rounded-lg border p-3',
-                                    done && 'border-green-600 bg-green-50 dark:bg-green-950',
-                                )}
-                            >
-                                <span className="font-medium">{item.product.display_name}</span>
-                                <span className="tabular-nums">
-                                    {item.quantity_scanned}/{item.quantity_requested} {done && '✓'}
-                                </span>
-                            </li>
-                        );
-                    })}
-                </ul>
-
-                {isOpen ? (
-                    <>
-                        {isFullyScanned && (
-                            <div className="rounded-xl border-2 border-green-600 bg-green-50 p-4 font-semibold text-green-800 dark:bg-green-950 dark:text-green-200">
-                                Semua item lengkap. Menunggu pengecekan dan penyelesaian oleh Admin.
-                            </div>
-                        )}
-                        <ScanInput
-                            onScan={(code) => send(code)}
-                            processing={processing || fefo !== null}
-                            feedback={feedback}
-                            lockedMessage={isFullyScanned ? 'Order lengkap' : undefined}
-                        />
-
-                        {fefo && (
-                            <form onSubmit={confirmFefo} className="grid gap-3 rounded-xl border-2 border-amber-500 p-4">
-                                <Label htmlFor="fefo_reason">Alasan mengeluarkan {fefo.code.toUpperCase()} di luar urutan FEFO</Label>
-                                <Input
-                                    id="fefo_reason"
-                                    className="h-12 text-base"
-                                    value={fefo.reason}
-                                    onChange={(e) => setFefo({ ...fefo, reason: e.target.value })}
-                                    placeholder="Contoh: dus expired terdekat tertumpuk di bawah"
-                                    autoFocus
-                                    required
-                                />
-                                <InputError message={fefo.error} />
-                                <div className="flex gap-2">
-                                    <Button type="submit" size="lg" disabled={processing || !fefo.reason.trim()}>
-                                        Tetap keluarkan
-                                    </Button>
-                                    <Button type="button" size="lg" variant="outline" onClick={() => setFefo(null)}>
-                                        Batal
-                                    </Button>
-                                </div>
-                            </form>
-                        )}
-                    </>
-                ) : (
-                    <div className="rounded-lg border p-4">
-                        Order ini sudah {ORDER_STATUS_LABELS[order.status].toLowerCase()}.{' '}
-                        <Link href={route('outbound.index')} className="underline">
-                            Kembali ke daftar order
-                        </Link>
-                    </div>
-                )}
-
-                {pickList.length > 0 && (
-                    <section className="print-area">
-                        <div className="mb-3 flex items-center justify-between gap-2">
-                            <h2 className="text-lg font-semibold">Daftar ambil (FEFO)</h2>
-                            <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">
-                                <Printer className="size-4" /> Cetak / simpan PDF
-                            </Button>
-                        </div>
-                        <p className="text-muted-foreground mb-3 hidden text-sm print:block">
-                            {order.order_number} · {order.destination} · dicetak {formatDateTime(new Date().toISOString())}
-                        </p>
-                        <div className="grid gap-4">
-                            {pickList.map((item) => (
-                                <div key={item.product} className="rounded-lg border">
-                                    <div className="bg-muted/50 flex justify-between p-3 font-semibold">
-                                        <span>{item.product}</span>
-                                        <span>ambil {item.remaining} dus</span>
+                <div className="grid grid-cols-1 gap-6">
+                    {pickList.length > 0 && (
+                        <section>
+                            <h2 className="mb-3 text-lg font-semibold">Daftar ambil (FEFO)</h2>
+                            <div className="grid gap-4">
+                                {pickList.map((item) => (
+                                    <div key={item.product} className="rounded-lg border">
+                                        <div className="bg-muted/50 flex justify-between p-3 font-semibold">
+                                            <span>{item.product}</span>
+                                            <span>ambil {item.remaining} dus</span>
+                                        </div>
+                                        {item.groups.length === 0 && <p className="p-3 text-sm text-red-600">Tidak ada dus di gudang.</p>}
+                                        <ul className="divide-y">
+                                            {item.groups.map((group) => (
+                                                <li key={`${group.expired_date}-${group.location}`} className="p-3 text-sm">
+                                                    <div className="flex justify-between font-medium">
+                                                        <span>
+                                                            Exp {formatDate(group.expired_date)} · {group.location}
+                                                        </span>
+                                                        <span>{group.codes.length} dus</span>
+                                                    </div>
+                                                    <div className="text-muted-foreground mt-1 font-mono text-xs break-words">
+                                                        {group.codes.join(', ')}
+                                                    </div>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        {item.groups.reduce((sum, group) => sum + group.codes.length, 0) < item.remaining &&
+                                            item.groups.length > 0 && (
+                                                <p className="p-3 text-sm text-red-600">Stok di gudang kurang dari yang diminta.</p>
+                                            )}
                                     </div>
-                                    {item.groups.length === 0 && <p className="p-3 text-sm text-red-600">Tidak ada dus di gudang.</p>}
-                                    <ul className="divide-y">
-                                        {item.groups.map((group) => (
-                                            <li key={`${group.expired_date}-${group.location}`} className="p-3 text-sm">
-                                                <div className="flex justify-between font-medium">
-                                                    <span>
-                                                        Exp {formatDate(group.expired_date)} · {group.location}
-                                                    </span>
-                                                    <span>{group.codes.length} dus</span>
-                                                </div>
-                                                <div className="text-muted-foreground mt-1 font-mono text-xs break-words">
-                                                    {group.codes.join(', ')}
-                                                </div>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    {item.groups.reduce((sum, group) => sum + group.codes.length, 0) < item.remaining && item.groups.length > 0 && (
-                                        <p className="p-3 text-sm text-red-600">Stok di gudang kurang dari yang diminta.</p>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                )}
-
-                <section>
-                    <h2 className="mb-3 text-lg font-semibold">Scan terakhir</h2>
-                    {recentScans.length === 0 ? (
-                        <p className="text-muted-foreground rounded-lg border p-4 text-sm">Belum ada dus keluar.</p>
-                    ) : (
-                        <ul className="divide-y rounded-lg border">
-                            {recentScans.map((scan) => (
-                                <li key={scan.id} className="flex items-center gap-3 p-3 text-sm">
-                                    <span className="font-mono font-semibold">{scan.box.qr_code}</span>
-                                    <span className="min-w-0 flex-1 truncate">{scan.box.product.display_name}</span>
-                                    {scan.fefo_violation && <span className="text-xs font-semibold text-amber-600">FEFO</span>}
-                                    <span className="text-muted-foreground whitespace-nowrap">Exp {formatDate(scan.box.expired_date)}</span>
-                                    {isOpen && (
-                                        <CancelScanButton
-                                            url={route('outbound-scans.cancel', scan.id)}
-                                            title={`Batalkan scan keluar ${scan.box.qr_code}?`}
-                                            description="Dus kembali ke gudang dan item order kembali butuh satu dus. Riwayat scan dan alasannya tetap tercatat."
-                                        />
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
+                                ))}
+                            </div>
+                        </section>
                     )}
-                </section>
+
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">Scan terakhir</h2>
+                        {recentScans.length === 0 ? (
+                            <p className="text-muted-foreground rounded-lg border p-4 text-sm">Belum ada dus keluar.</p>
+                        ) : (
+                            <ul className="divide-y rounded-lg border">
+                                {recentScans.map((scan) => (
+                                    <li key={scan.id} className="flex items-center gap-3 p-3 text-sm">
+                                        <span className="font-mono font-semibold">{scan.box.qr_code}</span>
+                                        <span className="min-w-0 flex-1 truncate">{scan.box.product.display_name}</span>
+                                        {scan.fefo_violation && <span className="text-xs font-semibold text-amber-600">FEFO</span>}
+                                        <span className="text-muted-foreground whitespace-nowrap">Exp {formatDate(scan.box.expired_date)}</span>
+                                        {isOpen && (
+                                            <CancelScanButton
+                                                url={route('outbound-scans.cancel', scan.id)}
+                                                title={`Batalkan scan keluar ${scan.box.qr_code}?`}
+                                                description="Dus kembali ke gudang dan item order kembali butuh satu dus. Riwayat scan dan alasannya tetap tercatat."
+                                            />
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+                </div>
             </div>
         </AppLayout>
     );

@@ -5,10 +5,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { ACTION_LABELS, BOX_STATUS_LABELS } from '@/lib/labels';
+import { ACTION_BADGE, ACTION_LABELS, ADJUSTMENT_TYPE_LABELS, BOX_STATUS_BADGE, BOX_STATUS_LABELS } from '@/lib/labels';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeftRight, Pencil, Save, ShieldAlert } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface Box {
@@ -38,9 +39,18 @@ interface HistoryRow {
     user: { id: string; name: string } | null;
 }
 
+interface PendingAdjustment {
+    id: string;
+    type: string;
+    reason: string;
+    created_at: string;
+    requested_by: { id: string; name: string };
+}
+
 interface Props {
     box: Box;
     history: HistoryRow[];
+    pendingAdjustment: PendingAdjustment | null;
     names: Record<string, string>;
     products: { id: string; display_name: string; shelf_life_days: number | null }[];
     locations: { id: string; name: string }[];
@@ -54,14 +64,15 @@ const FIELD_LABELS: Record<string, string> = {
     status: 'Status',
     order_number: 'Order',
     qr_code: 'Kode',
+    type: 'Jenis',
 };
 const HIDDEN_FIELDS = ['inbound_batch_id', 'scanned_in_by', 'scanned_in_at', 'fefo_violation'];
-const selectClass = 'border-input bg-background h-9 w-full rounded-md border px-3 text-sm';
+const selectClass = 'border-input bg-background h-10 w-full rounded-md border pl-3 pr-10 text-sm';
 
-export default function BoxShow({ box, history, names, products, locations }: Props) {
+export default function BoxShow({ box, history, pendingAdjustment, names, products, locations }: Props) {
     const { auth } = usePage<SharedData>().props;
     const canCorrect = auth.user.role !== 'staff' && (box.status === 'in_warehouse' || box.status === 'pending_adjustment');
-    const [dialog, setDialog] = useState<'revise' | 'move' | null>(null);
+    const [dialog, setDialog] = useState<'revise' | 'move' | 'adjust' | null>(null);
     const reviseForm = useForm({
         product_id: box.product_id,
         production_date: box.production_date ?? '',
@@ -69,6 +80,7 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
         reason: '',
     });
     const moveForm = useForm({ location_id: '' });
+    const adjustForm = useForm<{ type: string; reason: string; photo: File | null }>({ type: 'lost', reason: '', photo: null });
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Stok', href: '/stock' },
         { title: box.qr_code, href: route('boxes.show', box.id) },
@@ -80,6 +92,9 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
         }
         if (typeof value === 'string' && names[value]) {
             return names[value];
+        }
+        if (field === 'type' && typeof value === 'string') {
+            return ADJUSTMENT_TYPE_LABELS[value] ?? value;
         }
         if (field === 'status' && typeof value === 'string') {
             return BOX_STATUS_LABELS[value] ?? value;
@@ -114,6 +129,17 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
         setDialog('move');
     };
 
+    const openAdjust = () => {
+        adjustForm.reset();
+        adjustForm.clearErrors();
+        setDialog('adjust');
+    };
+
+    const submitAdjust: FormEventHandler = (e) => {
+        e.preventDefault();
+        adjustForm.post(route('adjustments.store', box.id), { preserveScroll: true, onSuccess: () => setDialog(null) });
+    };
+
     const submitRevise: FormEventHandler = (e) => {
         e.preventDefault();
         reviseForm.put(route('boxes.update', box.id), { preserveScroll: true, onSuccess: () => setDialog(null) });
@@ -127,26 +153,44 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={box.qr_code} />
-            <div className="mx-auto grid w-full max-w-4xl gap-6 p-4">
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="font-mono text-xl font-semibold">{box.qr_code}</h1>
-                            <Badge variant={box.status === 'in_warehouse' ? 'default' : 'secondary'}>
-                                {BOX_STATUS_LABELS[box.status] ?? box.status}
-                            </Badge>
+                            <Badge variant={BOX_STATUS_BADGE[box.status] ?? 'neutral'}>{BOX_STATUS_LABELS[box.status] ?? box.status}</Badge>
                         </div>
                         <p className="text-muted-foreground text-sm">{box.product.display_name}</p>
                     </div>
                     {canCorrect && (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
+                            {box.status === 'in_warehouse' && (
+                                <Button variant="outline" onClick={openAdjust}>
+                                    <ShieldAlert /> Ajukan hilang/rusak
+                                </Button>
+                            )}
                             <Button variant="outline" onClick={openMove}>
-                                Pindah lokasi
+                                <ArrowLeftRight /> Pindah lokasi
                             </Button>
-                            <Button onClick={openRevise}>Revisi data</Button>
+                            <Button onClick={openRevise}>
+                                <Pencil /> Revisi data
+                            </Button>
                         </div>
                     )}
                 </div>
+
+                {pendingAdjustment && (
+                    <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+                        <div className="font-semibold">
+                            Diajukan {ADJUSTMENT_TYPE_LABELS[pendingAdjustment.type].toLowerCase()} oleh {pendingAdjustment.requested_by.name},{' '}
+                            {formatDateTime(pendingAdjustment.created_at)}. Menunggu keputusan Owner.
+                        </div>
+                        <div>{pendingAdjustment.reason}</div>
+                        <Link href={route('adjustments.index')} className="underline">
+                            Lihat pengajuan
+                        </Link>
+                    </div>
+                )}
 
                 <dl className="grid gap-x-6 gap-y-3 rounded-lg border p-4 text-sm sm:grid-cols-2">
                     <div>
@@ -174,7 +218,10 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
                         <dd className="font-medium">
                             {box.outbound_order ? (
                                 <>
-                                    <Link href={route('orders.show', box.outbound_order.id)} className="hover:underline">
+                                    <Link
+                                        href={route('orders.show', box.outbound_order.id)}
+                                        className="text-primary underline-offset-4 hover:underline"
+                                    >
                                         {box.outbound_order.order_number}
                                     </Link>
                                     <div className="text-muted-foreground font-normal">{formatDateTime(box.scanned_out_at)}</div>
@@ -204,7 +251,11 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
                                     <tr key={row.id} className="border-t align-top">
                                         <td className="p-3 whitespace-nowrap">{formatDateTime(row.created_at)}</td>
                                         <td className="p-3">{row.user?.name ?? '-'}</td>
-                                        <td className="p-3">{ACTION_LABELS[row.action] ?? row.action}</td>
+                                        <td className="p-3">
+                                            <Badge variant={ACTION_BADGE[row.action] ?? 'neutral'} className="whitespace-nowrap">
+                                                {ACTION_LABELS[row.action] ?? row.action}
+                                            </Badge>
+                                        </td>
                                         <td className="p-3">
                                             {changes(row).map((line) => (
                                                 <div key={line}>{line}</div>
@@ -282,7 +333,7 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
                         </div>
                         <DialogFooter>
                             <Button type="submit" disabled={reviseForm.processing}>
-                                Simpan revisi
+                                <Save /> Simpan revisi
                             </Button>
                         </DialogFooter>
                     </form>
@@ -316,7 +367,62 @@ export default function BoxShow({ box, history, names, products, locations }: Pr
                         </div>
                         <DialogFooter>
                             <Button type="submit" disabled={moveForm.processing}>
-                                Pindahkan
+                                <ArrowLeftRight /> Pindahkan
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+            <Dialog open={dialog === 'adjust'} onOpenChange={(open) => !open && setDialog(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Ajukan hilang/rusak {box.qr_code}</DialogTitle>
+                        <DialogDescription>
+                            Dus tidak bisa dikeluarkan selama menunggu keputusan Owner. Stok baru berkurang setelah di-approve.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={submitAdjust} className="grid gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="type">Jenis</Label>
+                            <select
+                                id="type"
+                                className={selectClass}
+                                value={adjustForm.data.type}
+                                onChange={(e) => adjustForm.setData('type', e.target.value)}
+                            >
+                                {Object.entries(ADJUSTMENT_TYPE_LABELS).map(([value, label]) => (
+                                    <option key={value} value={value}>
+                                        {label}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError message={adjustForm.errors.type} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="adjust_reason">Alasan</Label>
+                            <Input
+                                id="adjust_reason"
+                                value={adjustForm.data.reason}
+                                onChange={(e) => adjustForm.setData('reason', e.target.value)}
+                                placeholder="Contoh: tidak ditemukan saat hitung fisik"
+                                required
+                            />
+                            <InputError message={adjustForm.errors.reason} />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="photo">Foto (opsional)</Label>
+                            <Input
+                                id="photo"
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                onChange={(e) => adjustForm.setData('photo', e.target.files?.[0] ?? null)}
+                            />
+                            <InputError message={adjustForm.errors.photo} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" disabled={adjustForm.processing}>
+                                <ShieldAlert /> Ajukan
                             </Button>
                         </DialogFooter>
                     </form>

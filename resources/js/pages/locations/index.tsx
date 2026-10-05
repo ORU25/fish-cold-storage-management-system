@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { Pencil, Plus, Save } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface Location {
@@ -49,7 +50,9 @@ export default function LocationsIndex({ locations }: { locations: Location[] })
             <div className="p-4">
                 <div className="flex items-start justify-between gap-4">
                     <Heading title="Lokasi" description="Lokasi tidak bisa dihapus, hanya dinonaktifkan." />
-                    <Button onClick={() => openForm(null)}>Tambah</Button>
+                    <Button onClick={() => openForm(null)}>
+                        <Plus /> Tambah
+                    </Button>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border">
@@ -75,13 +78,13 @@ export default function LocationsIndex({ locations }: { locations: Location[] })
                                     <td className="p-3 font-medium">{location.name}</td>
                                     <td className="p-3">{location.description ?? '-'}</td>
                                     <td className="p-3">
-                                        <Badge variant={location.is_active ? 'default' : 'secondary'}>
+                                        <Badge variant={location.is_active ? 'success' : 'neutral'}>
                                             {location.is_active ? 'Aktif' : 'Nonaktif'}
                                         </Badge>
                                     </td>
                                     <td className="p-3 text-right">
                                         <Button variant="outline" size="sm" onClick={() => openForm(location)}>
-                                            Ubah
+                                            <Pencil /> Ubah
                                         </Button>
                                     </td>
                                 </tr>
@@ -128,7 +131,7 @@ export default function LocationsIndex({ locations }: { locations: Location[] })
                         )}
                         <DialogFooter>
                             <Button type="submit" disabled={form.processing}>
-                                Simpan
+                                <Save /> Simpan
                             </Button>
                         </DialogFooter>
                     </form>

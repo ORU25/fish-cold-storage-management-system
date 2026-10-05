@@ -112,4 +112,58 @@ test('staff can not revise or move boxes', function () {
     $this->actingAs($staff)->post(route('boxes.move', $box), ['location_id' => $location->id])->assertForbidden();
     $this->actingAs($staff)->get(route('box-moves.index'))->assertForbidden();
     $this->actingAs($staff)->post(route('box-moves.store'), ['code' => $box->qr_code, 'location_id' => $location->id])->assertForbidden();
+
+    $admin = User::factory()->admin()->create();
+    $this->actingAs($admin)->post(route('box-moves.store'), ['code' => $box->qr_code, 'location_id' => $location->id]);
+    $this->actingAs($staff)->post(route('box-moves.cancel', ActivityLog::firstWhere('action', 'box.location_changed')))->assertForbidden();
+});
+
+test('a wrong bulk-move scan is undone from the list, putting the box back where it was', function () {
+    $admin = User::factory()->admin()->create();
+    $from = Location::factory()->create(['name' => 'Blok A']);
+    $to = Location::factory()->create(['name' => 'Blok B']);
+    $box = Box::factory()->create(['location_id' => $from->id]);
+
+    $this->actingAs($admin)->post(route('box-moves.store'), ['code' => $box->qr_code, 'location_id' => $to->id])->assertSessionHasNoErrors();
+    $move = ActivityLog::firstWhere('action', 'box.location_changed');
+
+    $this->actingAs($admin)->get(route('box-moves.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('recentMoves.0.id', $move->id)
+            ->where('recentMoves.0.from', 'Blok A')
+            ->where('recentMoves.0.to', 'Blok B')
+            ->where('recentMoves.0.can_cancel', true));
+
+    $this->actingAs($admin)->post(route('box-moves.cancel', $move))->assertSessionHasNoErrors();
+
+    expect($box->fresh()->location_id)->toBe($from->id)
+        ->and(ActivityLog::firstWhere('action', 'box.move_cancelled')->new_values)->toBe(['location_id' => $from->id]);
+
+    $this->actingAs($admin)->get(route('box-moves.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('recentMoves.0.is_cancellation', true)
+            ->where('recentMoves.1.can_cancel', false));
+    $this->actingAs($admin)->post(route('box-moves.cancel', $move))->assertSessionHasErrors('move');
+    expect($box->fresh()->location_id)->toBe($from->id);
+});
+
+test('a bulk move can not be undone once the box was moved again or left the warehouse', function () {
+    $admin = User::factory()->admin()->create();
+    [$blockB, $blockC] = Location::factory()->count(2)->create();
+    $box = Box::factory()->create();
+    $leaving = Box::factory()->create();
+
+    $this->actingAs($admin)->post(route('box-moves.store'), ['code' => $box->qr_code, 'location_id' => $blockB->id]);
+    $firstMove = ActivityLog::where('action', 'box.location_changed')->latest('id')->first();
+    $this->actingAs($admin)->post(route('box-moves.store'), ['code' => $box->qr_code, 'location_id' => $blockC->id]);
+
+    $this->actingAs($admin)->post(route('box-moves.cancel', $firstMove))->assertSessionHasErrors('move');
+    expect($box->fresh()->location_id)->toBe($blockC->id);
+
+    $this->actingAs($admin)->post(route('box-moves.store'), ['code' => $leaving->qr_code, 'location_id' => $blockB->id]);
+    $leavingMove = ActivityLog::where('action', 'box.location_changed')->latest('id')->first();
+    $leaving->update(['status' => BoxStatus::Outbound]);
+
+    $this->actingAs($admin)->post(route('box-moves.cancel', $leavingMove))->assertSessionHasErrors('move');
+    expect($leaving->fresh()->location_id)->toBe($blockB->id);
 });

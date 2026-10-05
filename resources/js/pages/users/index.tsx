@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem, type Role, type User } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { Pencil, Plus, Save } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 type UserRow = Pick<User, 'id' | 'name' | 'username' | 'role' | 'is_active'>;
@@ -43,7 +44,9 @@ export default function UsersIndex({ users, roles }: { users: UserRow[]; roles: 
             <div className="p-4">
                 <div className="flex items-start justify-between gap-4">
                     <Heading title="Pengguna" description="Kelola akun Staff, Admin, dan Owner. Akun tidak bisa dihapus, hanya dinonaktifkan." />
-                    <Button onClick={() => openForm(null)}>Tambah</Button>
+                    <Button onClick={() => openForm(null)}>
+                        <Plus /> Tambah
+                    </Button>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border">
@@ -64,11 +67,11 @@ export default function UsersIndex({ users, roles }: { users: UserRow[]; roles: 
                                     <td className="p-3">{user.username}</td>
                                     <td className="p-3 capitalize">{user.role}</td>
                                     <td className="p-3">
-                                        <Badge variant={user.is_active ? 'default' : 'secondary'}>{user.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
+                                        <Badge variant={user.is_active ? 'success' : 'neutral'}>{user.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
                                     </td>
                                     <td className="p-3 text-right">
                                         <Button variant="outline" size="sm" onClick={() => openForm(user)}>
-                                            Ubah
+                                            <Pencil /> Ubah
                                         </Button>
                                     </td>
                                 </tr>
@@ -106,7 +109,7 @@ export default function UsersIndex({ users, roles }: { users: UserRow[]; roles: 
                             <Label htmlFor="role">Role</Label>
                             <select
                                 id="role"
-                                className="border-input bg-background h-9 rounded-md border px-3 text-sm capitalize"
+                                className="border-input bg-background h-10 rounded-md border pl-3 pr-10 text-sm capitalize"
                                 value={form.data.role}
                                 onChange={(e) => form.setData('role', e.target.value as Role)}
                             >
@@ -145,7 +148,7 @@ export default function UsersIndex({ users, roles }: { users: UserRow[]; roles: 
                         )}
                         <DialogFooter>
                             <Button type="submit" disabled={form.processing}>
-                                Simpan
+                                <Save /> Simpan
                             </Button>
                         </DialogFooter>
                     </form>

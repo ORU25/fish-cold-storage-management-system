@@ -45,6 +45,6 @@ class InboundCancellationController extends Controller
             ActivityLog::record('box.inbound_cancelled', $box, oldValues: $oldValues, reason: $validated['reason']);
         });
 
-        return back();
+        return back()->with('success', 'Scan masuk dibatalkan.');
     }
 }

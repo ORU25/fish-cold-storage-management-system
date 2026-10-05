@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AdjustmentController;
 use App\Http\Controllers\BoxController;
 use App\Http\Controllers\BoxMoveController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\InboundBatchController;
 use App\Http\Controllers\InboundCancellationController;
 use App\Http\Controllers\InboundScanController;
@@ -13,17 +15,15 @@ use App\Http\Controllers\OutboundScanCancellationController;
 use App\Http\Controllers\OutboundScanController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\QrLabelController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::redirect('/', '/dashboard')->name('home');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
 
     Route::resource('products', ProductController::class)
         ->only(['index', 'store', 'update'])
@@ -43,8 +43,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('boxes/{box}/cancel-inbound', [InboundCancellationController::class, 'store'])->name('boxes.cancel-inbound');
         Route::put('boxes/{box}', [BoxController::class, 'update'])->name('boxes.update');
         Route::post('boxes/{box}/move', [BoxController::class, 'move'])->name('boxes.move');
+        Route::post('boxes/{box}/adjustments', [AdjustmentController::class, 'store'])->name('adjustments.store');
         Route::get('box-moves', [BoxMoveController::class, 'index'])->name('box-moves.index');
         Route::post('box-moves', [BoxMoveController::class, 'store'])->name('box-moves.store');
+        Route::post('box-moves/{log}/cancel', [BoxMoveController::class, 'cancel'])->name('box-moves.cancel');
 
         Route::resource('orders', OutboundOrderController::class)->except(['destroy']);
         Route::post('orders/{order}/open', [OutboundOrderController::class, 'open'])->name('orders.open');
@@ -75,6 +77,15 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware('role:owner')->group(function () {
         Route::resource('users', UserController::class)->only(['index', 'store', 'update']);
+        Route::post('adjustments/{adjustment}/approve', [AdjustmentController::class, 'approve'])->name('adjustments.approve');
+        Route::post('adjustments/{adjustment}/reject', [AdjustmentController::class, 'reject'])->name('adjustments.reject');
+    });
+
+    Route::middleware('role:owner,admin')->group(function () {
+        Route::get('adjustments', [AdjustmentController::class, 'index'])->name('adjustments.index');
+        Route::get('adjustments/{adjustment}/photo', [AdjustmentController::class, 'photo'])->name('adjustments.photo');
+        Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
     });
 
     Route::get('activity-logs', [ActivityLogController::class, 'index'])

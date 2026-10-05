@@ -195,3 +195,14 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - IMPORTANT: Activate `inertia-react-development` when working with Inertia React client-side patterns.
 
 </laravel-boost-guidelines>
+
+## Project Documents (PRD and System Design)
+
+`PRD Cold Storage Fish Stock Management.md` (what and why) and `rancangan-sistem.md` (how: flows, schema, rules) are the source of truth for this project. They are written in Indonesian; keep that language, tone and numbering.
+
+- Whenever the user asks for a change in behavior, rules, flow, data or permissions, update both documents in the same task as the code. Do not wait to be asked, and do not leave them for later.
+- Whenever the user says something does not match what they expect (a behavior, a rule, or a document that disagrees with the code), find out which side is wrong: fix the code, the documents, or both, and say which one you changed. If the documents and the code disagree and it is unclear which is right, ask before changing either.
+- Update every place a change touches, not only the first match: PRD user stories and acceptance criteria (section 5), the entity table (7) and the release stages (8); in the design, roles and permissions (2), status lifecycles (3), module flows (4), schema (5), pages per role (6), business rules (8), the activity log action list (5.8) and the stages (10).
+- Update the stage wording too when a feature moves between stages, and tick or add items in the open questions (PRD 9) when a decision is made.
+- Editing these two existing documents is always allowed; the "only create documentation files when requested" rule applies to new files.
+- In the final reply, list which sections of each document were changed.

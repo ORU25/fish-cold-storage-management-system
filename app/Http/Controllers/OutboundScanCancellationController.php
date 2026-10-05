@@ -48,6 +48,6 @@ class OutboundScanCancellationController extends Controller
             ActivityLog::record('box.outbound_cancelled', $box, ['status' => BoxStatus::Outbound->value, 'order_number' => $order->order_number], ['status' => BoxStatus::InWarehouse->value], $validated['reason']);
         });
 
-        return back();
+        return back()->with('success', 'Scan keluar dibatalkan.');
     }
 }

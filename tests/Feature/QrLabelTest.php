@@ -34,7 +34,7 @@ test('sticker quantity is limited', function (int $quantity) {
     $admin = User::factory()->admin()->create();
 
     $this->actingAs($admin)->post('/qr-labels', ['quantity' => $quantity])->assertSessionHasErrors('quantity');
-})->with([0, 1001]);
+})->with([0, 101]);
 
 test('print sheet shows every label of the batch with its QR image and can be reprinted', function () {
     $admin = User::factory()->admin()->create();
@@ -103,7 +103,7 @@ test('admin voids several available stickers at once with one reason, logged per
     $admin = User::factory()->admin()->create();
     $labels = QrLabel::factory()->count(3)->create();
 
-    $this->actingAs($admin)->post('/qr-labels/void', ['ids' => $labels->pluck('id')->all(), 'reason' => 'Gulungan basah'])->assertSessionHasNoErrors();
+    $this->actingAs($admin)->post('/qr-labels/void', ['ids' => $labels->pluck('id')->all(), 'reason' => 'Gulungan basah'])->assertSessionHasNoErrors()->assertSessionHas('success', '3 stiker di-void.');
 
     expect($labels->map->fresh()->pluck('status')->unique()->all())->toBe([QrLabelStatus::Void]);
     $logs = ActivityLog::where('action', 'qr.voided')->get();

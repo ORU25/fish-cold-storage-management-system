@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { ChevronLeft, ChevronRight, ListFilter, RotateCcw } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface ActivityLogRow {
@@ -36,7 +37,7 @@ interface Filters {
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Log Aktivitas', href: '/activity-logs' }];
 
-const selectClass = 'border-input bg-background h-9 rounded-md border px-3 text-sm';
+const selectClass = 'border-input bg-background h-10 rounded-md border pl-3 pr-10 text-sm';
 
 const formatDateTime = (value: string) =>
     new Date(value).toLocaleString('id-ID', {
@@ -98,9 +99,13 @@ export default function ActivityLogsIndex({
                     </select>
                     <Input type="date" name="date_from" defaultValue={filters.date_from ?? ''} className="w-auto" aria-label="Dari tanggal" />
                     <Input type="date" name="date_to" defaultValue={filters.date_to ?? ''} className="w-auto" aria-label="Sampai tanggal" />
-                    <Button type="submit">Filter</Button>
+                    <Button type="submit" variant="neutral">
+                        <ListFilter /> Filter
+                    </Button>
                     <Button variant="outline" asChild>
-                        <Link href={route('activity-logs.index')}>Reset</Link>
+                        <Link href={route('activity-logs.index')}>
+                            <RotateCcw /> Reset
+                        </Link>
                     </Button>
                 </form>
 
@@ -147,20 +152,24 @@ export default function ActivityLogsIndex({
                         <Button variant="outline" size="sm" disabled={!logs.prev_page_url} asChild={!!logs.prev_page_url}>
                             {logs.prev_page_url ? (
                                 <Link href={logs.prev_page_url} preserveScroll>
-                                    Sebelumnya
+                                    <ChevronLeft /> Sebelumnya
                                 </Link>
                             ) : (
-                                'Sebelumnya'
+                                <>
+                                    <ChevronLeft /> Sebelumnya
+                                </>
                             )}
                         </Button>
                         <span className="text-muted-foreground text-sm">Halaman {logs.current_page}</span>
                         <Button variant="outline" size="sm" disabled={!logs.next_page_url} asChild={!!logs.next_page_url}>
                             {logs.next_page_url ? (
                                 <Link href={logs.next_page_url} preserveScroll>
-                                    Berikutnya
+                                    Berikutnya <ChevronRight />
                                 </Link>
                             ) : (
-                                'Berikutnya'
+                                <>
+                                    Berikutnya <ChevronRight />
+                                </>
                             )}
                         </Button>
                     </div>

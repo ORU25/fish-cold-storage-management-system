@@ -30,7 +30,7 @@ class LocationController extends Controller
 
         ActivityLog::record('location.created', $location, newValues: $location->only($location->getFillable()));
 
-        return back();
+        return back()->with('success', 'Lokasi ditambahkan.');
     }
 
     public function update(Request $request, Location $location): RedirectResponse
@@ -51,7 +51,7 @@ class LocationController extends Controller
 
         ActivityLog::recordChanges('location.updated', $location);
 
-        return back();
+        return back()->with('success', 'Lokasi diperbarui.');
     }
 
     /**

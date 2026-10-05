@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import { LoaderCircle, Plus, Save, Send, Trash2 } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface Order {
@@ -25,7 +25,7 @@ interface Props {
     available: Record<string, number>;
 }
 
-const selectClass = 'border-input bg-background h-9 w-full rounded-md border px-3 text-sm';
+const selectClass = 'border-input bg-background h-10 w-full rounded-md border pl-3 pr-10 text-sm';
 const today = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Jakarta' });
 
 export default function OrderForm({ order, products, available }: Props) {
@@ -64,7 +64,7 @@ export default function OrderForm({ order, products, available }: Props) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={order ? `Ubah ${order.order_number}` : 'Buat order'} />
-            <form onSubmit={submit} className="mx-auto grid w-full max-w-3xl gap-6 p-4">
+            <form onSubmit={submit} className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 p-4">
                 <Heading
                     title={order ? `Ubah ${order.order_number}` : 'Buat Order Keluar'}
                     description="Order disimpan sebagai draft. Stok baru dipesan dan order muncul di layar staf setelah dibuka."
@@ -163,10 +163,10 @@ export default function OrderForm({ order, products, available }: Props) {
 
                 <div className="flex flex-wrap gap-2">
                     <Button type="submit" value="draft" variant="outline" disabled={form.processing}>
-                        Simpan draft
+                        <Save /> Simpan draft
                     </Button>
                     <Button type="submit" value="open" disabled={form.processing}>
-                        Simpan dan buka order
+                        <Send /> Simpan dan buka order
                     </Button>
                     {form.processing && (
                         <span className="text-muted-foreground flex items-center gap-2 text-sm">

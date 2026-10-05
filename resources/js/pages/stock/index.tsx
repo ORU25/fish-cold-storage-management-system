@@ -4,10 +4,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
-import { BOX_STATUS_LABELS } from '@/lib/labels';
+import { BOX_STATUS_BADGE, BOX_STATUS_LABELS } from '@/lib/labels';
 import { formatDate } from '@/lib/utils';
 import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
+import { ChevronRight, ListFilter, RotateCcw } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface BoxRow {
@@ -31,7 +32,7 @@ interface Props {
 }
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Stok', href: '/stock' }];
-const selectClass = 'border-input bg-background h-9 rounded-md border px-3 text-sm';
+const selectClass = 'border-input bg-background h-10 rounded-md border pl-3 pr-10 text-sm';
 const number = (value: number) => value.toLocaleString('id-ID');
 
 export default function StockIndex({ perProduct, perLocation, boxes, filters, products, locations, statuses }: Props) {
@@ -47,10 +48,10 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Stok" />
-            <div className="grid gap-6 p-4">
+            <div className="grid grid-cols-1 gap-6 p-4">
                 <Heading title="Stok" description="Stok riil = dus di gudang, termasuk yang menunggu keputusan adjustment." />
 
-                <div className="grid gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                     <section>
                         <h2 className="mb-3 font-semibold">Rekap per produk</h2>
                         <div className="overflow-x-auto rounded-lg border">
@@ -169,9 +170,13 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                 </option>
                             ))}
                         </select>
-                        <Button type="submit">Filter</Button>
+                        <Button type="submit" variant="neutral">
+                            <ListFilter /> Filter
+                        </Button>
                         <Button variant="outline" asChild>
-                            <Link href={route('stock.index')}>Reset</Link>
+                            <Link href={route('stock.index')}>
+                                <RotateCcw /> Reset
+                            </Link>
                         </Button>
                     </form>
 
@@ -185,20 +190,28 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                     <th className="p-3">Produksi</th>
                                     <th className="p-3">Expired</th>
                                     <th className="p-3">Status</th>
+                                    <th className="p-3" />
                                 </tr>
                             </thead>
                             <tbody>
                                 {boxes.data.length === 0 && (
                                     <tr>
-                                        <td colSpan={6} className="text-muted-foreground p-6 text-center">
+                                        <td colSpan={7} className="text-muted-foreground p-6 text-center">
                                             Tidak ada dus.
                                         </td>
                                     </tr>
                                 )}
                                 {boxes.data.map((box) => (
-                                    <tr key={box.id} className="border-t">
+                                    <tr
+                                        key={box.id}
+                                        className="hover:bg-muted/50 cursor-pointer border-t"
+                                        onClick={(e) => !(e.target as HTMLElement).closest('a') && router.visit(route('boxes.show', box.id))}
+                                    >
                                         <td className="p-3 font-mono text-xs">
-                                            <Link href={route('boxes.show', box.id)} className="hover:underline">
+                                            <Link
+                                                href={route('boxes.show', box.id)}
+                                                className="text-primary font-medium underline-offset-4 hover:underline"
+                                            >
                                                 {box.qr_code}
                                             </Link>
                                         </td>
@@ -207,9 +220,12 @@ export default function StockIndex({ perProduct, perLocation, boxes, filters, pr
                                         <td className="p-3">{formatDate(box.production_date)}</td>
                                         <td className="p-3">{formatDate(box.expired_date)}</td>
                                         <td className="p-3">
-                                            <Badge variant={box.status === 'in_warehouse' ? 'default' : 'secondary'}>
+                                            <Badge variant={BOX_STATUS_BADGE[box.status] ?? 'neutral'}>
                                                 {BOX_STATUS_LABELS[box.status] ?? box.status}
                                             </Badge>
+                                        </td>
+                                        <td className="p-3">
+                                            <ChevronRight className="text-muted-foreground size-4" />
                                         </td>
                                     </tr>
                                 ))}

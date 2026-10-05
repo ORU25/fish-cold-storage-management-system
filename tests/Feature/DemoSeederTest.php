@@ -14,7 +14,9 @@ test('demo seeder builds a consistent warehouse and releases the clock', functio
     $this->seed(DemoSeeder::class);
 
     expect(User::count())->toBe(5)
-        ->and(Box::where('status', BoxStatus::InWarehouse)->count())->toBe(48)
+        ->and(Box::where('status', BoxStatus::InWarehouse)->count())->toBe(46)
+        ->and(Box::whereIn('status', [BoxStatus::PendingAdjustment, BoxStatus::Damaged])->pluck('status')->countBy(fn (BoxStatus $status) => $status->value)->all())
+        ->toEqual(['pending_adjustment' => 1, 'damaged' => 1])
         ->and(Box::where('status', BoxStatus::Outbound)->count())->toBe(14)
         ->and(OutboundScan::count())->toBe(20)
         ->and(OutboundScan::whereNotNull('cancelled_at')->count())->toBe(6)

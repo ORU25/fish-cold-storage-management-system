@@ -8,6 +8,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Eye, Printer } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface PrintBatch {
@@ -35,19 +36,19 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Stiker QR" />
-            <div className="grid gap-6 p-4">
+            <div className="grid grid-cols-1 gap-6 p-4">
                 <Heading title="Stiker QR" description="Hanya stiker dari sistem yang bisa dipakai, dan setiap stiker hanya sekali." />
 
                 <div className="grid max-w-md gap-4">
                     <form onSubmit={generate} className="grid content-start gap-3 rounded-lg border p-4">
                         <h2 className="font-semibold">Buat stiker baru</h2>
                         <div className="grid gap-2">
-                            <Label htmlFor="quantity">Jumlah stiker (maks. 1000)</Label>
+                            <Label htmlFor="quantity">Jumlah stiker (maks. 100)</Label>
                             <Input
                                 id="quantity"
                                 type="number"
                                 min="1"
-                                max="1000"
+                                max="100"
                                 value={generateForm.data.quantity}
                                 onChange={(e) => generateForm.setData('quantity', e.target.value)}
                                 required
@@ -55,7 +56,7 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
                             <InputError message={generateForm.errors.quantity} />
                         </div>
                         <Button type="submit" disabled={generateForm.processing}>
-                            Buat dan cetak
+                            <Printer /> Buat dan cetak
                         </Button>
                     </form>
                 </div>
@@ -96,10 +97,14 @@ export default function QrLabelsIndex({ batches }: { batches: Paginated<PrintBat
                                     <td className="p-3">
                                         <div className="flex justify-end gap-2">
                                             <Button variant="outline" size="sm" asChild>
-                                                <Link href={route('qr-labels.show', batch.id)}>Detail</Link>
+                                                <Link href={route('qr-labels.show', batch.id)}>
+                                                    <Eye /> Detail
+                                                </Link>
                                             </Button>
                                             <Button variant="outline" size="sm" asChild>
-                                                <a href={route('qr-labels.print', batch.id)}>Cetak ulang</a>
+                                                <a href={route('qr-labels.print', batch.id)}>
+                                                    <Printer /> Cetak ulang
+                                                </a>
                                             </Button>
                                         </div>
                                     </td>

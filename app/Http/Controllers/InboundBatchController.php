@@ -40,7 +40,7 @@ class InboundBatchController extends Controller
 
         ActivityLog::record('inbound.started', $batch, newValues: $validated);
 
-        return to_route('inbound.show', $batch);
+        return to_route('inbound.show', $batch)->with('success', 'Batch masuk dibuat.');
     }
 
     public function show(InboundBatch $batch): Response
@@ -71,7 +71,7 @@ class InboundBatchController extends Controller
             ActivityLog::record('inbound.finished', $batch, newValues: ['box_count' => $batch->boxes()->count()]);
         }
 
-        return to_route('inbound.show', $batch);
+        return to_route('inbound.show', $batch)->with('success', 'Batch selesai.');
     }
 
     /**
@@ -88,7 +88,7 @@ class InboundBatchController extends Controller
 
         $batch->delete();
 
-        return to_route('inbound.index');
+        return to_route('inbound.index')->with('success', 'Batch dibatalkan.');
     }
 
     /**

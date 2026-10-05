@@ -117,7 +117,7 @@ export function CameraScanner({ onScan, paused }: { onScan: (code: string) => vo
 
     if (error) {
         return (
-            <div className="flex items-center gap-2 rounded-lg border-2 border-red-600 bg-red-50 p-3 font-medium text-red-800 dark:bg-red-950 dark:text-red-200">
+            <div className="flex items-center gap-2 rounded-lg border-2 border-red-600 bg-red-50 p-3 font-medium text-red-800">
                 <CameraOff className="size-5 shrink-0" />
                 {error}
             </div>

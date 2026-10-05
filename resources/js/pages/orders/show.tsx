@@ -1,4 +1,5 @@
 import { CancelScanButton } from '@/components/cancel-scan-button';
+import { ConfirmDialog, type Confirmation } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -6,12 +7,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { ORDER_STATUS_LABELS } from '@/lib/labels';
+import { ORDER_STATUS_BADGE, ORDER_STATUS_LABELS } from '@/lib/labels';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { LoaderCircle } from 'lucide-react';
-import { FormEventHandler, useState } from 'react';
+import { CheckCircle2, LoaderCircle, Pencil, Send, XCircle } from 'lucide-react';
+import { FormEventHandler, useState, type ReactNode } from 'react';
 
 type OrderAction = 'orders.open' | 'orders.complete';
 
@@ -41,6 +42,7 @@ interface Scan {
 
 export default function OrderShow({ order, available, scans }: { order: Order; available: Record<string, number>; scans: Scan[] }) {
     const { errors } = usePage().props as { errors: Record<string, string> };
+    const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
     const [cancelling, setCancelling] = useState(false);
     const isFullyScanned = order.items.every((item) => item.quantity_scanned >= item.quantity_requested);
     const cancelForm = useForm({ cancel_reason: '' });
@@ -54,19 +56,22 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
     const [pending, setPending] = useState<OrderAction | null>(null);
     const busy = pending !== null || cancelForm.processing;
 
-    const post = (name: OrderAction, question: string) => {
-        if (confirm(question)) {
-            router.post(route(name, order.id), {}, { preserveScroll: true, onStart: () => setPending(name), onFinish: () => setPending(null) });
-        }
-    };
+    const post = (name: OrderAction, confirmation: Omit<Confirmation, 'onConfirm'>) =>
+        setConfirmation({
+            ...confirmation,
+            onConfirm: () =>
+                router.post(route(name, order.id), {}, { preserveScroll: true, onStart: () => setPending(name), onFinish: () => setPending(null) }),
+        });
 
-    const label = (name: OrderAction, text: string) =>
+    const label = (name: OrderAction, text: string, icon: ReactNode) =>
         pending === name ? (
             <>
                 <LoaderCircle className="size-4 animate-spin" /> Memproses…
             </>
         ) : (
-            text
+            <>
+                {icon} {text}
+            </>
         );
 
     const cancel: FormEventHandler = (e) => {
@@ -77,12 +82,12 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={order.order_number} />
-            <div className="mx-auto grid w-full max-w-4xl gap-6 p-4">
+            <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="font-mono text-xl font-semibold">{order.order_number}</h1>
-                            <Badge variant={order.status === 'open' ? 'default' : 'secondary'}>{ORDER_STATUS_LABELS[order.status]}</Badge>
+                            <Badge variant={ORDER_STATUS_BADGE[order.status]}>{ORDER_STATUS_LABELS[order.status]}</Badge>
                         </div>
                         <p className="text-muted-foreground text-sm">
                             {order.destination} · {formatDate(order.order_date)} · dibuat oleh {order.created_by.name}
@@ -94,33 +99,49 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                         {order.status === 'draft' && (
                             <>
                                 <Button variant="outline" asChild>
-                                    <Link href={route('orders.edit', order.id)}>Ubah</Link>
+                                    <Link href={route('orders.edit', order.id)}>
+                                        <Pencil /> Ubah
+                                    </Link>
                                 </Button>
                                 <Button
                                     disabled={busy}
-                                    onClick={() => post('orders.open', 'Buka order? Stok akan dipesan dan order muncul di layar staf.')}
+                                    onClick={() =>
+                                        post('orders.open', {
+                                            title: 'Buka order?',
+                                            description: 'Stok akan dipesan dan order muncul di layar staf.',
+                                            confirmLabel: 'Buka order',
+                                        })
+                                    }
                                 >
-                                    {label('orders.open', 'Buka order')}
+                                    {label('orders.open', 'Buka order', <Send />)}
                                 </Button>
                             </>
                         )}
                         {order.status === 'open' && isFullyScanned && (
                             <Button
+                                variant="success"
                                 disabled={busy}
-                                onClick={() => post('orders.complete', 'Barang sudah dicek fisik dan sesuai? Order akan diselesaikan.')}
+                                onClick={() =>
+                                    post('orders.complete', {
+                                        title: 'Selesaikan order?',
+                                        description: 'Pastikan barang sudah dicek fisik dan sesuai.',
+                                        confirmLabel: 'Selesaikan order',
+                                        variant: 'success',
+                                    })
+                                }
                             >
-                                {label('orders.complete', 'Selesaikan order')}
+                                {label('orders.complete', 'Selesaikan order', <CheckCircle2 />)}
                             </Button>
                         )}
                         {(order.status === 'draft' || isOpen) && (
                             <Button variant="destructive" disabled={busy} onClick={() => setCancelling(true)}>
-                                Batalkan order
+                                <XCircle /> Batalkan order
                             </Button>
                         )}
                     </div>
                 </div>
                 {order.status === 'open' && isFullyScanned && (
-                    <div className="rounded-lg border-2 border-green-600 bg-green-50 p-4 text-sm text-green-800 dark:bg-green-950 dark:text-green-200">
+                    <div className="rounded-lg border-2 border-green-600 bg-green-50 p-4 text-sm text-green-800">
                         Semua item sudah discan. Cek fisik barang yang akan dikirim, lalu tekan <strong>Selesaikan order</strong>. Jika ada yang
                         salah, order masih open sehingga scan bisa dikoreksi.
                     </div>
@@ -201,7 +222,7 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                                         <td className="p-3">
                                             {scan.cancelled_at ? (
                                                 <div>
-                                                    <Badge variant="secondary">Dibatalkan</Badge>
+                                                    <Badge variant="neutral">Dibatalkan</Badge>
                                                     <div className="mt-1 text-xs">
                                                         {scan.cancelled_by?.name}: {scan.cancel_reason ?? '-'}
                                                     </div>
@@ -259,6 +280,7 @@ export default function OrderShow({ order, available, scans }: { order: Order; a
                     </form>
                 </DialogContent>
             </Dialog>
+            <ConfirmDialog confirmation={confirmation} onClose={() => setConfirmation(null)} />
         </AppLayout>
     );
 }

@@ -57,9 +57,9 @@ function useOnline() {
 }
 
 const STYLES: Record<ScanFeedbackType, { className: string; icon: typeof CheckCircle2 }> = {
-    success: { className: 'border-green-600 bg-green-50 text-green-800 dark:bg-green-950 dark:text-green-200', icon: CheckCircle2 },
-    warning: { className: 'border-amber-500 bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-200', icon: TriangleAlert },
-    error: { className: 'border-red-600 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200', icon: XCircle },
+    success: { className: 'border-green-600 bg-green-50 text-green-800', icon: CheckCircle2 },
+    warning: { className: 'border-amber-500 bg-amber-50 text-amber-900', icon: TriangleAlert },
+    error: { className: 'border-red-600 bg-red-50 text-red-800', icon: XCircle },
 };
 
 /** Phones and tablets get the camera on by default; PCs use a keyboard-mode scanner and can switch the camera on. */
@@ -132,7 +132,7 @@ export function ScanInput({
     return (
         <div className="grid gap-3">
             {!online && (
-                <div className="flex items-center gap-2 rounded-lg border-2 border-red-600 bg-red-50 p-3 font-medium text-red-800 dark:bg-red-950 dark:text-red-200">
+                <div className="flex items-center gap-2 rounded-lg border-2 border-red-600 bg-red-50 p-3 font-medium text-red-800">
                     <WifiOff className="size-5 shrink-0" />
                     Koneksi terputus. Scan tidak diterima sampai jaringan kembali.
                 </div>

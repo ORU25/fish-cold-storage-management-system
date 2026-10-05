@@ -7,7 +7,7 @@ import AppLayout from '@/layouts/app-layout';
 import { formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ScanLine } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 interface BatchRow {
@@ -62,7 +62,7 @@ export default function InboundIndex({ openBatches, finishedBatches }: { openBat
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Barang Masuk" />
-            <div className="mx-auto grid w-full max-w-3xl gap-8 p-4">
+            <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-8 p-4 lg:max-w-6xl lg:grid-cols-2 lg:items-start">
                 <section>
                     <Heading title="Batch Masuk Baru" description="Isi data surat jalan sekali, lalu scan semua dus dari truk yang sama." />
                     <form onSubmit={submit} className="grid gap-4 rounded-lg border p-4">
@@ -98,20 +98,22 @@ export default function InboundIndex({ openBatches, finishedBatches }: { openBat
                             <InputError message={form.errors.notes} />
                         </div>
                         <Button type="submit" size="lg" className="h-14 text-lg" disabled={form.processing}>
-                            Mulai Scan
+                            <ScanLine /> Mulai Scan
                         </Button>
                     </form>
                 </section>
 
-                <section>
-                    <h2 className="mb-3 text-lg font-semibold">Batch berjalan</h2>
-                    <BatchList batches={openBatches} empty="Tidak ada batch yang sedang berjalan." />
-                </section>
+                <div className="grid grid-cols-1 gap-8">
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">Batch berjalan</h2>
+                        <BatchList batches={openBatches} empty="Tidak ada batch yang sedang berjalan." />
+                    </section>
 
-                <section>
-                    <h2 className="mb-3 text-lg font-semibold">Batch selesai terakhir</h2>
-                    <BatchList batches={finishedBatches} empty="Belum ada batch selesai." />
-                </section>
+                    <section>
+                        <h2 className="mb-3 text-lg font-semibold">Batch selesai terakhir</h2>
+                        <BatchList batches={finishedBatches} empty="Belum ada batch selesai." />
+                    </section>
+                </div>
             </div>
         </AppLayout>
     );

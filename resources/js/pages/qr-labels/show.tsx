@@ -8,10 +8,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
-import { BOX_STATUS_LABELS, QR_STATUS_LABELS } from '@/lib/labels';
+import { BOX_STATUS_LABELS, QR_STATUS_BADGE, QR_STATUS_LABELS } from '@/lib/labels';
 import { formatDate, formatDateTime } from '@/lib/utils';
 import { type BreadcrumbItem, type Paginated } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Ban, ListFilter, Printer, RotateCcw } from 'lucide-react';
 import { FormEventHandler, useEffect, useState } from 'react';
 
 interface Batch {
@@ -47,8 +48,7 @@ interface Props {
     statuses: string[];
 }
 
-const selectClass = 'border-input bg-background h-9 rounded-md border px-3 text-sm';
-const STATUS_BADGE: Record<string, 'default' | 'secondary' | 'destructive'> = { available: 'default', used: 'secondary', void: 'destructive' };
+const selectClass = 'border-input bg-background h-10 rounded-md border pl-3 pr-10 text-sm';
 
 export default function QrLabelsShow({ batch, labels, filters, statuses }: Props) {
     // Selection is per page: only available stickers can be picked, and it resets whenever the rows change.
@@ -87,14 +87,16 @@ export default function QrLabelsShow({ batch, labels, filters, statuses }: Props
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`Stiker ${batch.labels_min_code}`} />
-            <div className="grid gap-6 p-4">
+            <div className="grid grid-cols-1 gap-6 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <Heading
                         title={`${batch.labels_min_code} – ${batch.labels_max_code}`}
                         description={`${batch.quantity} stiker · dibuat ${formatDateTime(batch.created_at)} oleh ${batch.generated_by.name}`}
                     />
                     <Button asChild>
-                        <a href={route('qr-labels.print', batch.id)}>Cetak semua</a>
+                        <a href={route('qr-labels.print', batch.id)}>
+                            <Printer /> Cetak semua
+                        </a>
                     </Button>
                 </div>
 
@@ -124,12 +126,16 @@ export default function QrLabelsShow({ batch, labels, filters, statuses }: Props
                                 </option>
                             ))}
                         </select>
-                        <Button type="submit">Filter</Button>
+                        <Button type="submit" variant="neutral">
+                            <ListFilter /> Filter
+                        </Button>
                         <Button variant="outline" asChild>
-                            <Link href={route('qr-labels.show', batch.id)}>Reset</Link>
+                            <Link href={route('qr-labels.show', batch.id)}>
+                                <RotateCcw /> Reset
+                            </Link>
                         </Button>
                         <Button type="button" variant="destructive" className="ml-auto" disabled={selected.length === 0} onClick={openVoid}>
-                            Void terpilih ({selected.length})
+                            <Ban /> Void terpilih ({selected.length})
                         </Button>
                     </form>
 
@@ -173,14 +179,17 @@ export default function QrLabelsShow({ batch, labels, filters, statuses }: Props
                                         </td>
                                         <td className="p-3 font-mono text-xs whitespace-nowrap">{label.code}</td>
                                         <td className="p-3">
-                                            <Badge variant={STATUS_BADGE[label.status] ?? 'secondary'}>
+                                            <Badge variant={QR_STATUS_BADGE[label.status] ?? 'neutral'}>
                                                 {QR_STATUS_LABELS[label.status] ?? label.status}
                                             </Badge>
                                         </td>
                                         <td className="p-3 whitespace-nowrap">{label.used_at ? formatDateTime(label.used_at) : '-'}</td>
                                         <td className="p-3">
                                             {label.box ? (
-                                                <Link href={route('boxes.show', label.box.id)} className="hover:underline">
+                                                <Link
+                                                    href={route('boxes.show', label.box.id)}
+                                                    className="text-primary underline-offset-4 hover:underline"
+                                                >
                                                     {label.box.product.display_name} · {label.box.location?.name ?? '-'}
                                                     <div className="text-muted-foreground text-xs">
                                                         {BOX_STATUS_LABELS[label.box.status] ?? label.box.status} · Exp{' '}
@@ -196,7 +205,7 @@ export default function QrLabelsShow({ batch, labels, filters, statuses }: Props
                                                 {label.status !== 'void' && (
                                                     <Button variant="outline" size="sm" asChild>
                                                         <a href={route('qr-labels.print-label', label.id)} target="_blank" rel="noreferrer">
-                                                            Cetak
+                                                            <Printer /> Cetak
                                                         </a>
                                                     </Button>
                                                 )}
@@ -235,7 +244,7 @@ export default function QrLabelsShow({ batch, labels, filters, statuses }: Props
                         </div>
                         <DialogFooter>
                             <Button type="submit" variant="destructive" disabled={voidForm.processing}>
-                                Void {selectedCodes.length} stiker
+                                <Ban /> Void {selectedCodes.length} stiker
                             </Button>
                         </DialogFooter>
                     </form>

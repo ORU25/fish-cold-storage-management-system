@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AdjustmentStatus;
 use App\Http\Requests\ReviseBoxRequest;
 use App\Models\ActivityLog;
 use App\Models\Box;
@@ -36,6 +37,7 @@ class BoxController extends Controller
         return Inertia::render('boxes/show', [
             'box' => $box,
             'history' => $history,
+            'pendingAdjustment' => $box->adjustments()->where('status', AdjustmentStatus::Pending)->with('requestedBy:id,name')->first(),
             'names' => $this->namesIn($history->flatMap(fn (ActivityLog $log): array => [...array_values($log->old_values ?? []), ...array_values($log->new_values ?? [])])),
             'products' => Product::active()->orderBy('display_name')->get(['id', 'display_name', 'shelf_life_days']),
             'locations' => Location::active()->orderBy('name')->get(['id', 'name']),
@@ -72,7 +74,7 @@ class BoxController extends Controller
                 ?? throw ValidationException::withMessages(['reason' => 'Tidak ada data yang berubah.']);
         });
 
-        return back();
+        return back()->with('success', 'Data dus diperbarui.');
     }
 
     public function move(Request $request, Box $box): RedirectResponse
@@ -81,7 +83,7 @@ class BoxController extends Controller
 
         DB::transaction(fn () => Box::lockForUpdate()->findOrFail($box->id)->moveTo(Location::findOrFail($validated['location_id'])));
 
-        return back();
+        return back()->with('success', 'Lokasi dus dipindah.');
     }
 
     /**

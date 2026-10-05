@@ -65,7 +65,7 @@ class QrLabelController extends Controller
      */
     public function store(Request $request): SymfonyResponse
     {
-        $validated = $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:1000']]);
+        $validated = $request->validate(['quantity' => ['required', 'integer', 'min:1', 'max:100']]);
 
         $batch = QrPrintBatch::generate($validated['quantity'], $request->user());
 
@@ -142,7 +142,7 @@ class QrLabelController extends Controller
             }
         });
 
-        return back();
+        return back()->with('success', count($validated['ids']).' stiker di-void.');
     }
 
     /**

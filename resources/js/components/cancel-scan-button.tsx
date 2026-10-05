@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type SharedData } from '@/types';
 import { useForm, usePage } from '@inertiajs/react';
+import { Undo2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 /** Admin and Owner undo of a wrong inbound or outbound scan (PRD 5.9). Renders nothing for Staff. */
@@ -31,7 +32,7 @@ export function CancelScanButton({ url, title, description }: { url: string; tit
     return (
         <>
             <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-                Batalkan
+                <Undo2 /> Batalkan
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent>
@@ -53,7 +54,7 @@ export function CancelScanButton({ url, title, description }: { url: string; tit
                         </div>
                         <DialogFooter>
                             <Button type="submit" variant="destructive" disabled={form.processing}>
-                                Batalkan scan
+                                <Undo2 /> Batalkan scan
                             </Button>
                         </DialogFooter>
                     </form>

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\ActivityLog;
+use App\Rules\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,8 +19,14 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(Request $request): Response
     {
+        $turnstileEnabled = (bool) config('services.turnstile.enabled');
+
         return Inertia::render('auth/login', [
             'status' => $request->session()->get('status'),
+            'turnstile' => [
+                'siteKey' => $turnstileEnabled ? config('services.turnstile.site_key') : Turnstile::TEST_SITE_KEY,
+                'required' => $turnstileEnabled,
+            ],
         ]);
     }
 

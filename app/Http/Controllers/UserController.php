@@ -30,7 +30,7 @@ class UserController extends Controller
 
         ActivityLog::record('user.created', $user, newValues: $user->only('name', 'username', 'role', 'is_active'));
 
-        return back();
+        return back()->with('success', 'Pengguna ditambahkan.');
     }
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
@@ -45,6 +45,6 @@ class UserController extends Controller
 
         ActivityLog::recordChanges('user.updated', $user);
 
-        return back();
+        return back()->with('success', 'Pengguna diperbarui.');
     }
 }

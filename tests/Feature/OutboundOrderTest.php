@@ -157,7 +157,7 @@ test('admin completes an order only after every item is scanned', function () {
     $full = orderWithItem($product, 2, scanned: 2);
 
     $this->actingAs($admin)->post(route('orders.complete', $partial))->assertSessionHasErrors('order');
-    $this->actingAs($admin)->post(route('orders.complete', $full))->assertSessionHasNoErrors();
+    $this->actingAs($admin)->post(route('orders.complete', $full))->assertSessionHasNoErrors()->assertSessionHas('success', 'Order selesai.');
 
     expect($partial->fresh()->status)->toBe(OrderStatus::Open)
         ->and($full->fresh()->status)->toBe(OrderStatus::Completed)

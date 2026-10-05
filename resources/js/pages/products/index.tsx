@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { Pencil, Plus, Save } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
 
 interface Product {
@@ -82,7 +83,9 @@ export default function ProductsIndex({ products }: { products: Product[] }) {
                         title="Produk Ikan"
                         description="Satu produk = satu kombinasi jenis, grade, dan size. Produk tidak bisa dihapus, hanya dinonaktifkan."
                     />
-                    <Button onClick={() => openForm(null)}>Tambah</Button>
+                    <Button onClick={() => openForm(null)}>
+                        <Plus /> Tambah
+                    </Button>
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border">
@@ -118,13 +121,11 @@ export default function ProductsIndex({ products }: { products: Product[] }) {
                                     <td className="p-3 text-right">{Number(product.kg_per_carton)}</td>
                                     <td className="p-3 text-right">{product.shelf_life_days ? `${product.shelf_life_days} hari` : '-'}</td>
                                     <td className="p-3">
-                                        <Badge variant={product.is_active ? 'default' : 'secondary'}>
-                                            {product.is_active ? 'Aktif' : 'Nonaktif'}
-                                        </Badge>
+                                        <Badge variant={product.is_active ? 'success' : 'neutral'}>{product.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
                                     </td>
                                     <td className="p-3 text-right">
                                         <Button variant="outline" size="sm" onClick={() => openForm(product)}>
-                                            Ubah
+                                            <Pencil /> Ubah
                                         </Button>
                                     </td>
                                 </tr>
@@ -204,7 +205,7 @@ export default function ProductsIndex({ products }: { products: Product[] }) {
                         )}
                         <DialogFooter>
                             <Button type="submit" disabled={form.processing}>
-                                Simpan
+                                <Save /> Simpan
                             </Button>
                         </DialogFooter>
                     </form>

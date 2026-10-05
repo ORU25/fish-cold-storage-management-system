@@ -17,7 +17,7 @@ test('admin can create a product and the display name and code are generated', f
         'size' => '3-5',
         'kg_per_carton' => 10,
         'shelf_life_days' => 365,
-    ])->assertSessionHasNoErrors();
+    ])->assertSessionHasNoErrors()->assertSessionHas('success', 'Produk ditambahkan.');
 
     expect(Product::sole())->toMatchArray([
         'code' => 'MB-A-3-5',

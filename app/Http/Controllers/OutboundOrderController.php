@@ -68,7 +68,7 @@ class OutboundOrderController extends Controller
             return $order;
         });
 
-        return to_route('orders.show', $order);
+        return to_route('orders.show', $order)->with('success', 'Order disimpan.');
     }
 
     public function show(OutboundOrder $order): Response
@@ -112,7 +112,7 @@ class OutboundOrderController extends Controller
             }
         });
 
-        return to_route('orders.show', $order);
+        return to_route('orders.show', $order)->with('success', 'Order diperbarui.');
     }
 
     public function open(OutboundOrder $order): RedirectResponse
@@ -124,7 +124,7 @@ class OutboundOrderController extends Controller
             $this->markOpen($order);
         });
 
-        return to_route('orders.show', $order);
+        return to_route('orders.show', $order)->with('success', 'Order dibuka.');
     }
 
     /**
@@ -158,7 +158,7 @@ class OutboundOrderController extends Controller
             ActivityLog::recordChanges('order.cancelled', $order, $reason);
         });
 
-        return to_route('orders.show', $order);
+        return to_route('orders.show', $order)->with('success', 'Order dibatalkan.');
     }
 
     /**
@@ -178,7 +178,7 @@ class OutboundOrderController extends Controller
             ActivityLog::recordChanges('order.completed', $order);
         });
 
-        return to_route('orders.show', $order);
+        return to_route('orders.show', $order)->with('success', 'Order selesai.');
     }
 
     private function form(?OutboundOrder $order): Response

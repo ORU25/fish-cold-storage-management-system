@@ -21,7 +21,7 @@ export default function OutboundIndex({ orders }: { orders: OpenOrder[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Barang Keluar" />
-            <div className="mx-auto grid w-full max-w-3xl gap-4 p-4">
+            <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 p-4 lg:max-w-6xl">
                 <Heading
                     title="Barang Keluar"
                     description="Pilih order yang akan dikeluarkan. Hanya order yang sudah dibuka Admin yang tampil di sini."
@@ -31,7 +31,7 @@ export default function OutboundIndex({ orders }: { orders: OpenOrder[] }) {
                     <p className="text-muted-foreground rounded-lg border p-6 text-center">Tidak ada order yang perlu dikeluarkan.</p>
                 )}
 
-                <ul className="grid gap-3">
+                <ul className="grid gap-3 lg:grid-cols-2">
                     {orders.map((order) => (
                         <li key={order.id}>
                             <Link href={route('outbound.show', order.id)} className="hover:bg-muted/50 flex items-center gap-4 rounded-xl border p-4">

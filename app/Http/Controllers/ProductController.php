@@ -27,7 +27,7 @@ class ProductController extends Controller
 
         ActivityLog::record('product.created', $product, newValues: $product->only($product->getFillable()));
 
-        return back();
+        return back()->with('success', 'Produk ditambahkan.');
     }
 
     public function update(ProductRequest $request, Product $product): RedirectResponse
@@ -36,6 +36,6 @@ class ProductController extends Controller
 
         ActivityLog::recordChanges('product.updated', $product);
 
-        return back();
+        return back()->with('success', 'Produk diperbarui.');
     }
 }

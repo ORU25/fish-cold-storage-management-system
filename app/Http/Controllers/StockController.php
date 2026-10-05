@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\BoxStatus;
 use App\Models\Box;
 use App\Models\Location;
-use App\Models\OutboundOrder;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -25,22 +24,6 @@ class StockController extends Controller
 
         $products = Product::orderBy('display_name')->get(['id', 'display_name', 'kg_per_carton'])->keyBy('id');
         $locations = Location::orderBy('name')->get(['id', 'name'])->keyBy('id');
-
-        $available = OutboundOrder::availableStock();
-
-        $perProduct = Box::whereIn('status', Box::IN_STOCK)
-            ->selectRaw('product_id, count(*) as total, sum(case when status = ? then 1 else 0 end) as pending', [BoxStatus::PendingAdjustment->value])
-            ->groupBy('product_id')
-            ->get()
-            ->map(fn (Box $row): array => [
-                'product' => $products[$row->product_id]->display_name,
-                'mc' => (int) $row->total,
-                'pending' => (int) $row->pending,
-                'available' => $available[$row->product_id] ?? 0,
-                'kg' => (float) $products[$row->product_id]->kg_per_carton * (int) $row->total,
-            ])
-            ->sortBy('product')
-            ->values();
 
         $perLocation = Box::whereIn('status', Box::IN_STOCK)
             ->selectRaw('location_id, product_id, count(*) as total')
@@ -65,7 +48,7 @@ class StockController extends Controller
             ->withQueryString();
 
         return Inertia::render('stock/index', [
-            'perProduct' => $perProduct,
+            'perProduct' => Box::stockPerProduct(),
             'perLocation' => $perLocation,
             'boxes' => $boxes,
             'filters' => $filters,
